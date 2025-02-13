@@ -16,7 +16,7 @@ def get_soundcard_iostream(device_list):
             return (i, i)
 
 def pow_two_pad_and_window(vec, show=False):
-    window = signal.windows.hann(len(vec))
+    window = signal.windows.tukey(len(vec), alpha=0.2)
     windowed_vec = vec * window
     padded_windowed_vec = np.pad(windowed_vec, (0, 2**int(np.ceil(np.log2(len(windowed_vec)))) - len(windowed_vec)))
     if show:
@@ -101,7 +101,10 @@ if __name__ == "__main__":
             speed = 300
             rot_speed = 150
             lateral_threshold = 1000
-            ground_threshold = 500
+            ground_threshold = 10000
+            air_threshold = 50
+            output_threshold = -40
+            distance_threshold = 30
             # Delay to allow robot initialization of all variables
             time.sleep(1)
             current_time = time.time()
@@ -109,28 +112,12 @@ if __name__ == "__main__":
             robot['motor.left.target'] = speed
             robot['motor.right.target'] = speed
             while True:
-                #Left proximity sensor
-                if robot['prox.horizontal'][0] > lateral_threshold:
-                    robot['leds.bottom.left'] = [0, 0, 255]
-                    while robot['prox.horizontal'][0] > lateral_threshold:
-                        robot['motor.left.target'] = rot_speed
-                        robot['motor.right.target'] = -rot_speed
-                    current_time = time.time()
-                    robot['leds.bottom.left'] = [0, 0, 0]
-                    robot['motor.left.target'] = speed
-                    robot['motor.right.target'] = speed
-                # Right proximity sensor
-                elif robot['prox.horizontal'][4] > lateral_threshold:
-                    robot['leds.bottom.right'] = [0, 0, 255]
-                    while robot['prox.horizontal'][4] > lateral_threshold:
-                        robot['motor.left.target'] = -rot_speed
-                        robot['motor.right.target'] = rot_speed
-                    current_time = time.time()
-                    robot['leds.bottom.right'] = [0, 0, 0]
-                    robot['motor.left.target'] = speed
-                    robot['motor.right.target'] = speed
+                # Robot left the ground
+                if (robot['prox.ground.reflected'][0] < air_threshold or robot['prox.ground.reflected'][1] < air_threshold):
+                    print('Robot left the ground')
+                    raise KeyboardInterrupt
                 # Left ground sensor
-                if robot['prox.ground.reflected'][0] > ground_threshold:
+                elif robot['prox.ground.reflected'][0] > ground_threshold:
                     robot['leds.bottom.left'] = [255, 0, 0]
                     robot['leds.bottom.right'] = [255, 0, 0]
                     while robot['prox.ground.reflected'][0] > ground_threshold:
@@ -151,11 +138,26 @@ if __name__ == "__main__":
                     robot['motor.right.target'] = speed
                     robot['leds.bottom.left'] = [0, 0, 0]
                     robot['leds.bottom.right'] = [0, 0, 0]
-
-                # Pick up the robot to stop the program
-                elif (robot['prox.ground.reflected'][0] < 50 or robot['prox.ground.reflected'][1] < 50):
-                    print('Robot left the ground')
-                    raise KeyboardInterrupt
+                #Left proximity sensor
+                if robot['prox.horizontal'][0] > lateral_threshold:
+                    robot['leds.bottom.left'] = [0, 0, 255]
+                    while robot['prox.horizontal'][0] > lateral_threshold:
+                        robot['motor.left.target'] = rot_speed
+                        robot['motor.right.target'] = -rot_speed
+                    current_time = time.time()
+                    robot['leds.bottom.left'] = [0, 0, 0]
+                    robot['motor.left.target'] = speed
+                    robot['motor.right.target'] = speed
+                # Right proximity sensor
+                elif robot['prox.horizontal'][4] > lateral_threshold:
+                    robot['leds.bottom.right'] = [0, 0, 255]
+                    while robot['prox.horizontal'][4] > lateral_threshold:
+                        robot['motor.left.target'] = -rot_speed
+                        robot['motor.right.target'] = rot_speed
+                    current_time = time.time()
+                    robot['leds.bottom.right'] = [0, 0, 0]
+                    robot['motor.left.target'] = speed
+                    robot['motor.right.target'] = speed
                 
                 stream = sd.Stream(samplerate=fs,
                         blocksize=0,
@@ -173,16 +175,18 @@ if __name__ == "__main__":
                 while not audio_in_data.empty():
                     all_input_audio.append(audio_in_data.get())
                 input_audio = np.concatenate(all_input_audio)
-                db_rms = 20*np.log10(np.std(input_audio))
-                if db_rms < -40:
-                    print('Low output level. Replace amp battery')
-                    raise KeyboardInterrupt
+                # db_rms = 20*np.log10(np.std(input_audio))
+                # # Battery is dead or not connected
+                # if db_rms < output_threshold:
+                #     print('Low output level. Replace amp battery')
+                #     raise KeyboardInterrupt
+                
                 # distance = sonar(input_audio, sig, Fs=fs)*100
                 distance = mean_env_sonar(input_audio, sig, Fs=fs)*100
 
                 print('Estimated distance: %3.1f' % distance, '[cm]')
 
-                if distance < 25 and distance > 0:
+                if distance < distance_threshold and distance > 0:
                     print('Encountered Obstacle')
                     robot['leds.bottom.left'] = [0, 255, 0]
                     robot['leds.bottom.right'] = [0, 255, 0]

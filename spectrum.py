@@ -2,12 +2,9 @@ import matplotlib.pyplot as plt
 import sounddevice as sd
 import numpy as np 
 import scipy.signal as signal
-import scipy.fft as fft
 import queue
 import time
 from broadcast_pcmd3180 import activate_mics
-from das_filter import das_filter
-from continuous_ranging import sonar
 from das_v2 import das_filter_v2
 
 def get_soundcard_iostream(device_list):
@@ -18,7 +15,7 @@ def get_soundcard_iostream(device_list):
             return (i, i)
         
 def pow_two_pad_and_window(vec, fs, show=False):
-    window = signal.windows.hann(len(vec))
+    window = signal.windows.tukey(len(vec), alpha=0.2)
     windowed_vec = vec * window
     padded_windowed_vec = np.pad(windowed_vec, (0, 2**int(np.ceil(np.log2(len(windowed_vec)))) - len(windowed_vec)))
     if show:
@@ -36,8 +33,8 @@ if __name__ == "__main__":
 
     fs = 192000
     dur = 2e-3
-    hi_freq = 50e3
-    low_freq = 30e3
+    hi_freq = 52.5e3
+    low_freq = 27.5e3
 
     t_tone = np.linspace(0, dur, int(fs*dur))
     chirp = signal.chirp(t_tone, hi_freq, t_tone[-1], low_freq)    
@@ -97,30 +94,43 @@ if __name__ == "__main__":
         filtered_signals = signal.correlate(valid_channels_audio, np.reshape(sig, (-1, 1)), 'full', method='fft')
         envelopes = np.abs(signal.hilbert(filtered_signals, axis=0))
 
-        peaks = []
-        for e in envelopes.T:
-            p, _ = signal.find_peaks(e, prominence=6)
-            peaks.append(p[0])
+        mean_env = np.sum(envelopes, axis=1)/envelopes.shape[1]
+        peaks, _ = signal.find_peaks(mean_env, prominence=10)
 
-        furthest_peak = np.max(peaks)
+        furthest_peak = peaks[0]
 
         fig, axs = plt.subplots(8, 1, sharex=True, sharey=True)
         peaks_array = np.array(peaks)
         for i in range(8):
             axs[i].plot(filtered_signals[:, i])
-            axs[i].vlines(np.array([furthest_peak, furthest_peak+70]), ymin=-20, ymax=20, colors='red')
+            axs[i].vlines(np.array([furthest_peak, furthest_peak+70, 3500]), ymin=-10, ymax=10, colors='red')
             axs[i].set_title('Matched Filter Channel %d' % (i+1))
             axs[i].grid(True)
+        plt.tight_layout()
+        plt.show()
 
-        theta2, p_das2 = das_filter_v2(filtered_signals[furthest_peak+70:4000, ], fs=fs, nch=filtered_signals.shape[1], d=0.003, bw=(low_freq, hi_freq))
+        theta2, p_das2 = das_filter_v2(filtered_signals[furthest_peak+70:3500, ], fs=fs, nch=filtered_signals.shape[1], d=0.003, bw=(low_freq, hi_freq))
+
+        if max(p_das2) > 0.01:
+            theta_hat = np.argmax(p_das2)
         
+        print('Estimated DoA: %d [deg]' % theta2[theta_hat])
         plt.figure()
         plt.plot(theta2, p_das2)
+        if max(p_das2) > 0.001:
+            plt.vlines(theta2[theta_hat], ymin=0, ymax=max(p_das2)*1.1, colors='red')
         plt.grid()
         plt.title('Fast Implementation')
         plt.tight_layout()
         plt.show()
 
+        fig3, axs3 = plt.subplots(8, 1, sharex=True, sharey=True)
+        for i in range(8):
+            axs3[i].plot(input_audio[:, i])
+            axs3[i].set_title('Recorded Audio Channel %d' % (i+1))
+            axs3[i].grid(True)
+        plt.tight_layout()
+        plt.show()
         # RecSignals = fft.fft(input_audio, n=2**int(np.ceil(np.log2(len(input_audio)))), axis=0)
 
         # FiltSignals = fft.fft(filtered_signals, n=2**int(np.ceil(np.log2(len(filtered_signals)))), axis=0)

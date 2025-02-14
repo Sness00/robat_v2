@@ -17,12 +17,12 @@ def pow_two_pad_and_window(vec, show = True):
     padded_windowed_vec = np.pad(windowed_vec, (0, 2**int(np.ceil(np.log2(len(windowed_vec)))) - len(windowed_vec)))
     if show:
         dur = len(padded_windowed_vec) / fs
-        t = np.linspace(0, dur, len(padded_windowed_vec))
+        t = np.linspace(0, dur, len(windowed_vec))
         plt.figure()
         plt.subplot(2, 1, 1)
-        plt.plot(t, padded_windowed_vec)
+        plt.plot(t, windowed_vec)
         plt.subplot(2, 1, 2)
-        plt.specgram(padded_windowed_vec, NFFT=256, Fs=192e3)
+        plt.specgram(windowed_vec, NFFT=256, Fs=192e3)
         plt.show()
     return padded_windowed_vec/max(padded_windowed_vec)
 

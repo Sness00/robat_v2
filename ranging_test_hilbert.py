@@ -98,7 +98,7 @@ if __name__ == "__main__":
     peaks = []
     enough = True
     for i in np.arange(envelopes.shape[1]):
-        idxs, _ = signal.find_peaks(envelopes[:, i], prominence=7)
+        idxs, _ = signal.find_peaks(envelopes[:, i], prominence=8)
         if len(idxs) < 2:
             enough = False
         peaks.append(idxs[0:2])
@@ -120,24 +120,24 @@ if __name__ == "__main__":
         print('Estimated mean distance: %.5f' % mean_dist, '[m]')
 
     t_plot = np.linspace(0, envelopes.shape[0]/fs, envelopes.shape[0])
-    # plt.figure()
-    # aa = plt.subplot(421)
-    # if enough:
-    #     plt.vlines(peaks_array[0, :]/fs, 0, 100, linestyles='dashed', colors='r')
-    # plt.plot(t_plot, envelopes[:, 0])
-    # plt.title('Envelope of Channel 1')
-    # plt.grid()
+    plt.figure()
+    aa = plt.subplot(421)
+    if enough:
+        plt.vlines(peaks_array[0, :]/fs, 0, max(envelopes[:, 0]), linestyles='dashed', colors='r')
+    plt.plot(t_plot, envelopes[:, 0])
+    plt.title('Envelope of Channel 1')
+    plt.grid()
 
-    # for i in np.arange(1, envelopes.shape[1]):
-    #     plt.subplot(4, 2, i+1, sharex=aa, sharey=aa)
-    #     if enough:
-    #         plt.vlines(peaks_array[i, :]/fs, 0, 100, linestyles='dashed', colors='r')
-    #     plt.plot(t_plot, envelopes[:, i])
-    #     plt.title('Envelope of Channel %d' %(i+1))
-    #     plt.grid()
+    for i in np.arange(1, envelopes.shape[1]):
+        plt.subplot(4, 2, i+1, sharex=aa, sharey=aa)
+        if enough:
+            plt.vlines(peaks_array[i, :]/fs, 0, max(envelopes[:, i]), linestyles='dashed', colors='r')
+        plt.plot(t_plot, envelopes[:, i])
+        plt.title('Envelope of Channel %d' %(i+1))
+        plt.grid()
 
-    # plt.tight_layout()
-    # plt.show()
+    plt.tight_layout()
+    plt.show()
     
     mean_envelope = np.sum(envelopes, axis=1)/envelopes.shape[1]
     if enough:
@@ -149,16 +149,16 @@ if __name__ == "__main__":
     else:
         print('Not enough')
 
-    # plt.figure()
-    # if enough:
-    #     plt.vlines(peaks[0:2]/fs, 0, 100, linestyles='dashed', colors='r')
-    # plt.plot(t_plot, mean_envelope)
-    # plt.title('Mean Envelope')
-    # plt.minorticks_on()
-    # plt.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
-    # plt.grid()
-    # plt.tight_layout()
-    # plt.show()
+    plt.figure()
+    if enough:
+        plt.vlines(peaks[0:2]/fs, 0, max(mean_envelope), linestyles='dashed', colors='r')
+    plt.plot(t_plot, mean_envelope)
+    plt.title('Mean Envelope')
+    plt.minorticks_on()
+    plt.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
+    plt.grid()
+    plt.tight_layout()
+    plt.show()
 
 
     # plt.figure()

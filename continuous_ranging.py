@@ -5,8 +5,8 @@ import scipy.signal as signal
 import queue
 import time
 from thymiodirect import Connection, Thymio
-import random
 from broadcast_pcmd3180 import activate_mics
+from das_v2 import das_filter_v2
 
 def get_soundcard_iostream(device_list):
     for i, each in enumerate(device_list):
@@ -36,7 +36,7 @@ def sonar(signals, output_sig, Fs=192e3):
     for i in np.arange(signals.shape[1]):
         filtered_signal = signal.correlate(signals[:, i], output_sig, 'same', method='fft')
         smoothed_signal = np.abs(signal.hilbert(filtered_signal))
-        peaks, _ = signal.find_peaks(smoothed_signal, prominence=8)
+        peaks, _ = signal.find_peaks(smoothed_signal, prominence=12)
         if len(peaks) > 1:
             obst_distance += (peaks[1] - peaks[0])/Fs*343/2 + 0.025
             counter += 1
@@ -51,23 +51,24 @@ def mean_env_sonar(signals, output_sig, Fs=192e3):
     envelopes = np.abs(signal.hilbert(filtered_signals))
 
     mean_env = np.sum(envelopes, axis=1)/envelopes.shape[1]
-    peaks, _ = signal.find_peaks(mean_env, prominence=10)
+    peaks, _ = signal.find_peaks(mean_env, prominence=12)
     if len(peaks) > 1:
         obst_distance = (peaks[1] - peaks[0])/Fs*343/2 + 0.025
-        return obst_distance
+        return obst_distance, filtered_signals, peaks[0]
     else:
-        return 0
+        return 0, filtered_signals, None
     
 if __name__ == "__main__":
 
     fs = 192e3
     dur = 2e-3
-
+    hi_freq = 55e3
+    low_freq = 25e3
     t_tone = np.linspace(0, dur, int(fs*dur))
-    chirp = signal.chirp(t_tone, 55e3, t_tone[-1], 25e3)
+    chirp = signal.chirp(t_tone, hi_freq, t_tone[-1], low_freq)
     sig = pow_two_pad_and_window(chirp, show=False)
 
-    silence_dur = 10 # [ms]
+    silence_dur = 15 # [ms]
     silence_samples = int(silence_dur * fs/1000)
     silence_vec = np.zeros((silence_samples, ))
     full_sig = pow_two(np.concatenate((sig, silence_vec)))
@@ -95,19 +96,18 @@ if __name__ == "__main__":
         port = Connection.serial_default_port()
         try:
             th = Thymio(serial_port=port,
-            on_connect=lambda node_id: print(f'Thymio {node_id} is connected'))
+            on_connect=lambda node_id: print(f'\nThymio {node_id} is connected\n'))
             th.connect()
             robot = th[th.first_node()]
-            speed = 300
+            speed = 0
             rot_speed = 150
-            lateral_threshold = 1000
+            lateral_threshold = 1200
             ground_threshold = 10000
             air_threshold = 50
             output_threshold = -40
             distance_threshold = 30
             # Delay to allow robot initialization of all variables
             time.sleep(1)
-            current_time = time.time()
             
             robot['motor.left.target'] = speed
             robot['motor.right.target'] = speed
@@ -144,7 +144,6 @@ if __name__ == "__main__":
                     while robot['prox.horizontal'][0] > lateral_threshold:
                         robot['motor.left.target'] = rot_speed
                         robot['motor.right.target'] = -rot_speed
-                    current_time = time.time()
                     robot['leds.bottom.left'] = [0, 0, 0]
                     robot['motor.left.target'] = speed
                     robot['motor.right.target'] = speed
@@ -154,7 +153,6 @@ if __name__ == "__main__":
                     while robot['prox.horizontal'][4] > lateral_threshold:
                         robot['motor.left.target'] = -rot_speed
                         robot['motor.right.target'] = rot_speed
-                    current_time = time.time()
                     robot['leds.bottom.right'] = [0, 0, 0]
                     robot['motor.left.target'] = speed
                     robot['motor.right.target'] = speed
@@ -175,32 +173,37 @@ if __name__ == "__main__":
                 while not audio_in_data.empty():
                     all_input_audio.append(audio_in_data.get())
                 input_audio = np.concatenate(all_input_audio)
-                # db_rms = 20*np.log10(np.std(input_audio))
-                # # Battery is dead or not connected
-                # if db_rms < output_threshold:
-                #     print('Low output level. Replace amp battery')
-                #     raise KeyboardInterrupt
+                db_rms = 20*np.log10(np.std(input_audio))
+                # Battery is dead or not connected
+                if db_rms < output_threshold:
+                    print('Low output level. Dead battery?')
                 
-                # distance = sonar(input_audio, sig, Fs=fs)*100
-                distance = mean_env_sonar(input_audio, sig, Fs=fs)*100
-
-                print('Estimated distance: %3.1f' % distance, '[cm]')
+                distance, filt_sigs, direct_path = mean_env_sonar(input_audio, sig, Fs=fs)
+                distance = distance*100
 
                 if distance < distance_threshold and distance > 0:
                     print('Encountered Obstacle')
-                    robot['leds.bottom.left'] = [0, 255, 0]
-                    robot['leds.bottom.right'] = [0, 255, 0]
-                    direction = random.choice(['l', 'r'])
-                    while(time.time() - current_time) < 1:
-                        if direction == 'l':
-                            robot['motor.left.target'] = -rot_speed
-                            robot['motor.right.target'] = rot_speed
-                        else:
-                            robot['motor.left.target'] = rot_speed
-                            robot['motor.right.target'] = -rot_speed
+                    print('Estimated distance: %3.1f' % distance, '[cm]')                    
+                    theta2, p_das2 = das_filter_v2(filt_sigs[direct_path+70:direct_path+70+384], fs=fs, nch=filt_sigs.shape[1], d=0.003, bw=(low_freq, hi_freq))
+                    if max(p_das2) > 0.005:
+                        robot['leds.bottom.left'] = [0, 255, 0]
+                        robot['leds.bottom.right'] = [0, 255, 0]
+                        doa_index = np.argmax(p_das2)
+                        theta_hat = theta2[doa_index]
+                        print('\nEstimated DoA: %.2f [deg]\n' % theta_hat)
+                        current_time = time.time()
+                        while(time.time() - current_time) < 1:
+                            if theta_hat >= 0:
+                                robot['motor.left.target'] = -rot_speed
+                                robot['motor.right.target'] = rot_speed
+                            else:
+                                robot['motor.left.target'] = rot_speed
+                                robot['motor.right.target'] = -rot_speed
+                    else:
+                        print('No DoA detected')
+                    
                     robot['leds.bottom.left'] = [0, 0, 0]
                     robot['leds.bottom.right'] = [0, 0, 0]
-                    current_time = time.time()
                     robot['motor.left.target'] = speed
                     robot['motor.right.target'] = speed
 

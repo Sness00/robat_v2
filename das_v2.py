@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.signal import stft
 
-def das_filter_v2(y, fs, nch, d, bw, theta=np.linspace(-90, 90, 37), c=343):    
+def das_filter_v2(y, fs, nch, d, bw, theta=np.linspace(-90, 90, 73), c=343):    
     """
     Simple multiband Delay-and-Sum spatial filter implementation.
     Parameters:

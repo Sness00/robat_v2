@@ -37,7 +37,7 @@ if __name__ == "__main__":
     chirp = signal.chirp(t_tone, 60e3, t_tone[-1], 40e3)    
     sig = pow_two_pad_and_window(chirp, fs, show=False)
 
-    silence_dur = 10 # [ms]
+    silence_dur = 15 # [ms]
     silence_samples = int(silence_dur * fs/1000)
     silence_vec = np.zeros((silence_samples, ))
     full_sig = pow_two(np.concatenate((sig, silence_vec)))
@@ -126,6 +126,8 @@ if __name__ == "__main__":
         plt.vlines(peaks_array[0, :]/fs, 0, max(envelopes[:, 0]), linestyles='dashed', colors='r')
     plt.plot(t_plot, envelopes[:, 0])
     plt.title('Envelope of Channel 1')
+    plt.minorticks_on()
+    plt.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
     plt.grid()
 
     for i in np.arange(1, envelopes.shape[1]):
@@ -134,6 +136,8 @@ if __name__ == "__main__":
             plt.vlines(peaks_array[i, :]/fs, 0, max(envelopes[:, i]), linestyles='dashed', colors='r')
         plt.plot(t_plot, envelopes[:, i])
         plt.title('Envelope of Channel %d' %(i+1))
+        plt.minorticks_on()
+        plt.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
         plt.grid()
 
     plt.tight_layout()

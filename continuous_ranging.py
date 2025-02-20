@@ -51,7 +51,7 @@ def mean_env_sonar(signals, output_sig, Fs=192e3):
     envelopes = np.abs(signal.hilbert(filtered_signals))
 
     mean_env = np.sum(envelopes, axis=1)/envelopes.shape[1]
-    peaks, _ = signal.find_peaks(mean_env, prominence=12)
+    peaks, _ = signal.find_peaks(mean_env, prominence=13)
     if len(peaks) > 1:
         obst_distance = (peaks[1] - peaks[0])/Fs*343/2 + 0.025
         return obst_distance, filtered_signals, peaks[0]
@@ -99,10 +99,10 @@ if __name__ == "__main__":
             on_connect=lambda node_id: print(f'\nThymio {node_id} is connected\n'))
             th.connect()
             robot = th[th.first_node()]
-            speed = 0
+            speed = 300
             rot_speed = 150
-            lateral_threshold = 1200
-            ground_threshold = 10000
+            lateral_threshold = 1100
+            ground_threshold = 400
             air_threshold = 50
             output_threshold = -40
             distance_threshold = 30
@@ -138,24 +138,6 @@ if __name__ == "__main__":
                     robot['motor.right.target'] = speed
                     robot['leds.bottom.left'] = [0, 0, 0]
                     robot['leds.bottom.right'] = [0, 0, 0]
-                #Left proximity sensor
-                if robot['prox.horizontal'][0] > lateral_threshold:
-                    robot['leds.bottom.left'] = [0, 0, 255]
-                    while robot['prox.horizontal'][0] > lateral_threshold:
-                        robot['motor.left.target'] = rot_speed
-                        robot['motor.right.target'] = -rot_speed
-                    robot['leds.bottom.left'] = [0, 0, 0]
-                    robot['motor.left.target'] = speed
-                    robot['motor.right.target'] = speed
-                # Right proximity sensor
-                elif robot['prox.horizontal'][4] > lateral_threshold:
-                    robot['leds.bottom.right'] = [0, 0, 255]
-                    while robot['prox.horizontal'][4] > lateral_threshold:
-                        robot['motor.left.target'] = -rot_speed
-                        robot['motor.right.target'] = rot_speed
-                    robot['leds.bottom.right'] = [0, 0, 0]
-                    robot['motor.left.target'] = speed
-                    robot['motor.right.target'] = speed
                 
                 stream = sd.Stream(samplerate=fs,
                         blocksize=0,
@@ -191,6 +173,12 @@ if __name__ == "__main__":
                         doa_index = np.argmax(p_das2)
                         theta_hat = theta2[doa_index]
                         print('\nEstimated DoA: %.2f [deg]\n' % theta_hat)
+                        if theta_hat < 0:
+                            robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 255, 255]
+                        elif theta_hat > 0:
+                            robot['leds.circle'] = [0, 255, 255, 0, 0, 0, 0, 0]
+                        else:
+                            robot['leds.circle'] = [255, 0, 0, 0, 0, 0, 0, 0]
                         current_time = time.time()
                         while(time.time() - current_time) < 1:
                             if theta_hat >= 0:
@@ -199,6 +187,7 @@ if __name__ == "__main__":
                             else:
                                 robot['motor.left.target'] = rot_speed
                                 robot['motor.right.target'] = -rot_speed
+                        robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 0, 0]
                     else:
                         print('No DoA detected')
                     
@@ -206,7 +195,24 @@ if __name__ == "__main__":
                     robot['leds.bottom.right'] = [0, 0, 0]
                     robot['motor.left.target'] = speed
                     robot['motor.right.target'] = speed
-
+                #Left proximity sensor
+                if robot['prox.horizontal'][0] > lateral_threshold:
+                    robot['leds.bottom.left'] = [0, 0, 255]
+                    while robot['prox.horizontal'][0] > lateral_threshold:
+                        robot['motor.left.target'] = rot_speed
+                        robot['motor.right.target'] = -rot_speed
+                    robot['leds.bottom.left'] = [0, 0, 0]
+                    robot['motor.left.target'] = speed
+                    robot['motor.right.target'] = speed
+                # Right proximity sensor
+                elif robot['prox.horizontal'][4] > lateral_threshold:
+                    robot['leds.bottom.right'] = [0, 0, 255]
+                    while robot['prox.horizontal'][4] > lateral_threshold:
+                        robot['motor.left.target'] = -rot_speed
+                        robot['motor.right.target'] = rot_speed
+                    robot['leds.bottom.right'] = [0, 0, 0]
+                    robot['motor.left.target'] = speed
+                    robot['motor.right.target'] = speed
         except KeyboardInterrupt:            
             print('Terminated by user')
         finally:

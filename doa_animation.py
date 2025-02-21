@@ -7,6 +7,8 @@ import time
 from broadcast_pcmd3180 import activate_mics
 from das_v2 import das_filter_v2
 from matplotlib.animation import FuncAnimation
+from capon import capon_method
+from das_filter import das_filter
 
 def get_soundcard_iostream(device_list):
     for i, each in enumerate(device_list):
@@ -111,7 +113,7 @@ if __name__ == "__main__":
                 # plt.tight_layout()
                 # plt.show()
 
-                theta2, p_das2 = das_filter_v2(filtered_signals[furthest_peak+70:furthest_peak+70+384, ], fs=fs, nch=filtered_signals.shape[1], d=0.003, bw=(low_freq, hi_freq))
+                theta2, p_das2 = capon_method(filtered_signals[furthest_peak+70:furthest_peak+70+384, ], fs=fs, nch=filtered_signals.shape[1], d=0.003, bw=(low_freq, hi_freq))
                 if max(p_das2) > 0.005:
                     theta_hat = np.argmax(p_das2)
                     print('Estimated DoA: %.2f [deg]' % theta2[theta_hat])
@@ -128,7 +130,7 @@ if __name__ == "__main__":
         # Limit theta between -90 and 90 degrees
         ax.set_theta_direction(-1)
         ax.set_xlim(-np.pi/2, np.pi/2)
-        ax.set_ylim(-20, 40)        
+        # ax.set_ylim(-20, 40)        
         ax.grid(True)
         line, = ax.plot(np.linspace(-np.pi/2, np.pi/2, 73), 0*np.sin(np.linspace(-np.pi/2, np.pi/2, 73)))
         ani = FuncAnimation(fig, update, frames=range(10), blit=False, interval=40)

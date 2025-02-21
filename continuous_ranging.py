@@ -6,7 +6,7 @@ import queue
 import time
 from thymiodirect import Connection, Thymio
 from broadcast_pcmd3180 import activate_mics
-from das_v2 import das_filter_v2
+from das_v2 import das_filter
 
 def get_soundcard_iostream(device_list):
     for i, each in enumerate(device_list):
@@ -45,13 +45,25 @@ def sonar(signals, output_sig, Fs=192e3):
     else:
         return 0
     
-def mean_env_sonar(signals, output_sig, Fs=192e3):
+def sonar_1ch(signals, output_sig, Fs=192e3):
+    distances = [0, 0]
+    filtered_signals = signal.correlate(signals, np.reshape(output_sig, (-1, 1)), 'same', method='fft')
+    envelopes = np.abs(signal.hilbert(filtered_signals))
+    c = 0
+    for i in np.arange(1, envelopes.shape[1], 2):
+        mean_env = np.mean(envelopes[:, i-1:i], axis=1)
+        peaks, _ = signal.find_peaks(mean_env, prominence=8, distance=55)
+        if len(peaks) > 1:
+            obst_distance = (peaks[1] - peaks[0])/Fs*343/2 + 0.025
+            distances[c] = obst_distance*100
+        c += 1
+    return distances
 
+def mean_env_sonar(signals, output_sig, Fs=192e3):
     filtered_signals = signal.correlate(signals, np.reshape(output_sig, (-1, 1)), 'full', method='fft')
     envelopes = np.abs(signal.hilbert(filtered_signals))
-
-    mean_env = np.sum(envelopes, axis=1)/envelopes.shape[1]
-    peaks, _ = signal.find_peaks(mean_env, prominence=13)
+    mean_env = np.mean(envelopes, axis=1)
+    peaks, _ = signal.find_peaks(mean_env, prominence=8, distance=55)
     if len(peaks) > 1:
         obst_distance = (peaks[1] - peaks[0])/Fs*343/2 + 0.025
         return obst_distance, filtered_signals, peaks[0]
@@ -99,10 +111,10 @@ if __name__ == "__main__":
             on_connect=lambda node_id: print(f'\nThymio {node_id} is connected\n'))
             th.connect()
             robot = th[th.first_node()]
-            speed = 300
+            speed = 200
             rot_speed = 150
-            lateral_threshold = 1100
-            ground_threshold = 400
+            lateral_threshold = 10000
+            ground_threshold = 10000
             air_threshold = 50
             output_threshold = -40
             distance_threshold = 30
@@ -159,60 +171,70 @@ if __name__ == "__main__":
                 # Battery is dead or not connected
                 if db_rms < output_threshold:
                     print('Low output level. Dead battery?')
-                
-                distance, filt_sigs, direct_path = mean_env_sonar(input_audio, sig, Fs=fs)
-                distance = distance*100
-
-                if distance < distance_threshold and distance > 0:
-                    print('Encountered Obstacle')
-                    print('Estimated distance: %3.1f' % distance, '[cm]')                    
-                    theta2, p_das2 = das_filter_v2(filt_sigs[direct_path+70:direct_path+70+384], fs=fs, nch=filt_sigs.shape[1], d=0.003, bw=(low_freq, hi_freq))
-                    if max(p_das2) > 0.005:
-                        robot['leds.bottom.left'] = [0, 255, 0]
-                        robot['leds.bottom.right'] = [0, 255, 0]
-                        doa_index = np.argmax(p_das2)
-                        theta_hat = theta2[doa_index]
-                        print('\nEstimated DoA: %.2f [deg]\n' % theta_hat)
-                        if theta_hat < 0:
-                            robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 255, 255]
-                        elif theta_hat > 0:
-                            robot['leds.circle'] = [0, 255, 255, 0, 0, 0, 0, 0]
-                        else:
-                            robot['leds.circle'] = [255, 0, 0, 0, 0, 0, 0, 0]
-                        current_time = time.time()
-                        while(time.time() - current_time) < 1:
-                            if theta_hat >= 0:
-                                robot['motor.left.target'] = -rot_speed
-                                robot['motor.right.target'] = rot_speed
-                            else:
-                                robot['motor.left.target'] = rot_speed
-                                robot['motor.right.target'] = -rot_speed
-                        robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 0, 0]
-                    else:
-                        print('No DoA detected')
+                else:
+                    channels_12_78 = np.hstack(
+                        (np.reshape(input_audio[:, 0], (-1, 1)),
+                        np.reshape(input_audio[:, 1], (-1, 1)),
+                            np.reshape(input_audio[:, 6], (-1, 1)),
+                            np.reshape(input_audio[:, 7], (-1, 1)))
+                            )
                     
-                    robot['leds.bottom.left'] = [0, 0, 0]
-                    robot['leds.bottom.right'] = [0, 0, 0]
-                    robot['motor.left.target'] = speed
-                    robot['motor.right.target'] = speed
-                #Left proximity sensor
-                if robot['prox.horizontal'][0] > lateral_threshold:
-                    robot['leds.bottom.left'] = [0, 0, 255]
-                    while robot['prox.horizontal'][0] > lateral_threshold:
-                        robot['motor.left.target'] = rot_speed
-                        robot['motor.right.target'] = -rot_speed
-                    robot['leds.bottom.left'] = [0, 0, 0]
-                    robot['motor.left.target'] = speed
-                    robot['motor.right.target'] = speed
-                # Right proximity sensor
-                elif robot['prox.horizontal'][4] > lateral_threshold:
-                    robot['leds.bottom.right'] = [0, 0, 255]
-                    while robot['prox.horizontal'][4] > lateral_threshold:
-                        robot['motor.left.target'] = -rot_speed
-                        robot['motor.right.target'] = rot_speed
-                    robot['leds.bottom.right'] = [0, 0, 0]
-                    robot['motor.left.target'] = speed
-                    robot['motor.right.target'] = speed
+                    dist_l, dist_r = sonar_1ch(channels_12_78, sig, Fs=fs)
+
+                    distance, filt_sigs, direct_path = mean_env_sonar(input_audio, sig, Fs=fs)
+                    distance = distance*100
+
+                    if distance < distance_threshold and distance > 0:
+                        print('Estimated distance: %3.1f' % distance, '[cm]')
+                        print('Estimated distance ch1: %3.1f' % dist_l, '[cm]')
+                        print('Estimated distance ch8: %3.1f' % dist_r, '[cm]')                    
+                        theta2, p_das2 = das_filter(filt_sigs[direct_path+48:direct_path+48+384], fs=fs, nch=filt_sigs.shape[1], d=0.003, bw=(low_freq, hi_freq))
+                        if max(p_das2) > 0.005:
+                            robot['leds.bottom.left'] = [0, 255, 0]
+                            robot['leds.bottom.right'] = [0, 255, 0]
+                            doa_index = np.argmax(p_das2)
+                            theta_hat = theta2[doa_index]
+                            print('\nEstimated DoA: %.2f [deg]\n' % theta_hat)
+                            if theta_hat > 0:
+                                robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 255, 255]
+                            elif theta_hat < 0:
+                                robot['leds.circle'] = [0, 255, 255, 0, 0, 0, 0, 0]
+                            else:
+                                robot['leds.circle'] = [255, 0, 0, 0, 0, 0, 0, 0]
+                            current_time = time.time()
+                            while(time.time() - current_time) < 1:
+                                if theta_hat <= 0:
+                                    robot['motor.left.target'] = -rot_speed
+                                    robot['motor.right.target'] = rot_speed
+                                else:
+                                    robot['motor.left.target'] = rot_speed
+                                    robot['motor.right.target'] = -rot_speed
+                            robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 0, 0]
+                        else:
+                            print('No DoA detected')
+                        
+                        robot['leds.bottom.left'] = [0, 0, 0]
+                        robot['leds.bottom.right'] = [0, 0, 0]
+                        robot['motor.left.target'] = speed
+                        robot['motor.right.target'] = speed
+                    #Left proximity sensor
+                    if robot['prox.horizontal'][0] > lateral_threshold:
+                        robot['leds.bottom.left'] = [0, 0, 255]
+                        while robot['prox.horizontal'][0] > lateral_threshold:
+                            robot['motor.left.target'] = rot_speed
+                            robot['motor.right.target'] = -rot_speed
+                        robot['leds.bottom.left'] = [0, 0, 0]
+                        robot['motor.left.target'] = speed
+                        robot['motor.right.target'] = speed
+                    # Right proximity sensor
+                    elif robot['prox.horizontal'][4] > lateral_threshold:
+                        robot['leds.bottom.right'] = [0, 0, 255]
+                        while robot['prox.horizontal'][4] > lateral_threshold:
+                            robot['motor.left.target'] = -rot_speed
+                            robot['motor.right.target'] = rot_speed
+                        robot['leds.bottom.right'] = [0, 0, 0]
+                        robot['motor.left.target'] = speed
+                        robot['motor.right.target'] = speed
         except KeyboardInterrupt:            
             print('Terminated by user')
         finally:
@@ -221,6 +243,7 @@ if __name__ == "__main__":
                 robot['motor.right.target'] = 0
                 robot['leds.bottom.left'] = 0
                 robot['leds.bottom.right'] = 0
+                robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 0, 0]
                 th.disconnect()
             except Exception as e:
                 print('Exception encountered:', e)

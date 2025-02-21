@@ -26,6 +26,10 @@ def das_filter(y, fs, nch, d, bw, theta=np.linspace(-90, 90, 36), c=343):
         for ii in range(len(t_spec_axis)):
             spec = spectrum[f_spec_axis == f_c, :, ii].squeeze()
             cov_est[:, :, bands == f_c] += np.expand_dims(np.outer(spec, spec.conj().T), 2) / len(t_spec_axis)
+            mat = cov_est[:, :, bands == f_c].squeeze()
+            print(mat.shape)
+            print(np.linalg.matrix_rank(mat))
+            inv_cov_est = np.linalg.inv(mat)
 
     p = np.zeros((len(bands), len(theta)), dtype=complex)
     for ii in range(len(bands)):

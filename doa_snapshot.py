@@ -1,12 +1,15 @@
+import os
+import time
+import queue
+import numpy as np
+import scipy.signal as signal
 import matplotlib.pyplot as plt
 import sounddevice as sd
-import numpy as np 
-import scipy.signal as signal
-import queue
-import time
 from broadcast_pcmd3180 import activate_mics
 from das_v2 import das_filter
 from capon import capon_method
+
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 def get_soundcard_iostream(device_list):
     for i, each in enumerate(device_list):
@@ -30,6 +33,13 @@ def pow_two_pad_and_window(vec, fs, show=False):
 def pow_two(vec):
     return np.pad(vec, (0, 2**int(np.ceil(np.log2(len(vec)))) - len(vec)))
 
+def windower(a):
+    window = signal.windows.tukey(len(a), alpha=0.2)
+    if len(a.shape) > 1:
+        window = np.reshape(window, (-1, 1))
+    windowed_a = a * window
+    return windowed_a
+
 if __name__ == "__main__":
 
     fs = 192000
@@ -44,9 +54,8 @@ if __name__ == "__main__":
     silence_dur = 15 # [ms]
     silence_samples = int(silence_dur * fs/1000)
     silence_vec = np.zeros((silence_samples, ))
-    full_sig = pow_two(np.concatenate((sig, silence_vec)))
-    # full_sig = np.concatenate((sig, silence_vec))
-    stereo_sig = np.hstack([full_sig.reshape(-1, 1), full_sig.reshape(-1, 1)])
+    full_sig = np.reshape(pow_two(np.concatenate((sig, silence_vec))), (-1, 1))
+    stereo_sig = np.hstack([full_sig, full_sig])
 
     output_sig = np.float32(stereo_sig)
 
@@ -95,26 +104,33 @@ if __name__ == "__main__":
         envelopes = np.abs(signal.hilbert(filtered_signals, axis=0))
 
         mean_env = np.sum(envelopes, axis=1)/envelopes.shape[1]
-        peaks, _ = signal.find_peaks(mean_env, prominence=10)
+        peaks, _ = signal.find_peaks(mean_env, prominence=7, distance=30)
 
         furthest_peak = peaks[0]
 
+        current_time = time.time()
+        theta, p_capon = capon_method(windower(filtered_signals[furthest_peak+96:furthest_peak+96+192]), fs=fs, nch=filtered_signals.shape[1], d=0.003, bw=(low_freq, hi_freq))
+        print(1/(time.time() - current_time), 'Capon')
+        current_time = time.time()
+        theta2, p_das2 = das_filter(windower(filtered_signals[furthest_peak+96:furthest_peak+96+192]), fs=fs, nch=filtered_signals.shape[1], d=0.003, bw=(low_freq, hi_freq))
+        print(1/(time.time() - current_time), 'DaS')
 
-        theta, p_capon = capon_method(filtered_signals[furthest_peak+192:], fs=fs, nch=filtered_signals.shape[1], d=0.003, bw=(low_freq, hi_freq))
-        theta2, p_das2 = das_filter(filtered_signals[furthest_peak+192:], fs=fs, nch=filtered_signals.shape[1], d=0.003, bw=(low_freq, hi_freq))
-        
+        theta_bar_capon = theta[np.argmax(p_capon)]
+        theta_bar_das = theta2[np.argmax(p_das2)]
+
+        print(f'Capon: {theta_bar_capon} [deg] DaS: {theta_bar_das} [deg]') 
+
         fig, ax = plt.subplots(4, 2, sharex=True, sharey=True)
         for i in range(2):
             for j in range(4):
-                ax[j, i].plot(filtered_signals[:, i*4+j])
-                ax[j, i].vlines(np.array([furthest_peak, furthest_peak+192]), -20, 20, colors='r', linestyles='dashed')
+                ax[j, i].plot(windower(filtered_signals[furthest_peak+96:furthest_peak+96+192, i*4+j]))
                 ax[j, i].set_title(f'Channel {i*4+j+1}')
         plt.tight_layout()
         plt.show()
 
         fig, (ax1, ax2) = plt.subplots(1, 2, subplot_kw={'projection': 'polar'})
         plt.suptitle('Capon Method vs DaS')
-        ax1.plot(np.deg2rad(theta), p_capon)
+        ax1.plot(np.deg2rad(theta), 20*np.log10(p_capon))
         ax1.set_title('Capon Method Output')
         # Shift axes by -90 degrees
         ax1.set_theta_offset(np.pi/2)
@@ -124,7 +140,7 @@ if __name__ == "__main__":
         # ax.set_ylim(-20, 40)        
         ax1.grid(True)
 
-        ax2.plot(np.deg2rad(theta2), p_das2)
+        ax2.plot(np.deg2rad(theta2), 20*np.log10(p_das2))
         ax2.set_title('DaS Filter Output')
         # Shift axes by -90 degrees
         ax2.set_theta_offset(np.pi/2)

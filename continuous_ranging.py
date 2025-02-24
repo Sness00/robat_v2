@@ -1,10 +1,13 @@
-import matplotlib.pyplot as plt
-import sounddevice as sd
+import os
+import time
+from datetime import datetime
+import queue
 import numpy as np
 import scipy.signal as signal
-import queue
-import time
-from thymiodirect import Connection, Thymio
+import matplotlib.pyplot as plt
+import sounddevice as sd
+import soundfile as sf
+from thymiodirect import Thymio, Connection
 from broadcast_pcmd3180 import activate_mics
 from das_v2 import das_filter
 
@@ -47,30 +50,45 @@ def sonar(signals, output_sig, Fs=192e3):
     
 def sonar_1ch(signals, output_sig, Fs=192e3):
     distances = [0, 0]
-    filtered_signals = signal.correlate(signals, np.reshape(output_sig, (-1, 1)), 'same', method='fft')
-    envelopes = np.abs(signal.hilbert(filtered_signals))
+    filtered_signals = signal.correlate(signals, np.reshape(output_sig, (-1, 1)), 'full', method='fft')
+    envelopes = np.abs(signal.hilbert(filtered_signals, axis=0))
     c = 0
     for i in np.arange(1, envelopes.shape[1], 2):
         mean_env = np.mean(envelopes[:, i-1:i], axis=1)
-        peaks, _ = signal.find_peaks(mean_env, prominence=8, distance=55)
+        peaks, _ = signal.find_peaks(mean_env, prominence=7, distance=30)
         if len(peaks) > 1:
             obst_distance = (peaks[1] - peaks[0])/Fs*343/2 + 0.025
             distances[c] = obst_distance*100
-        c += 1
+        c += 1        
     return distances
 
 def mean_env_sonar(signals, output_sig, Fs=192e3):
     filtered_signals = signal.correlate(signals, np.reshape(output_sig, (-1, 1)), 'full', method='fft')
-    envelopes = np.abs(signal.hilbert(filtered_signals))
+    envelopes = np.abs(signal.hilbert(filtered_signals, axis=0))
     mean_env = np.mean(envelopes, axis=1)
-    peaks, _ = signal.find_peaks(mean_env, prominence=8, distance=55)
+
+    peaks, _ = signal.find_peaks(mean_env, prominence=7, distance=30)
     if len(peaks) > 1:
         obst_distance = (peaks[1] - peaks[0])/Fs*343/2 + 0.025
         return obst_distance, filtered_signals, peaks[0]
     else:
         return 0, filtered_signals, None
-    
+
+def windower(a):
+    window = signal.windows.tukey(len(a), alpha=0.2)
+    if len(a.shape) > 1:
+        window = np.reshape(window, (-1, 1))
+    windowed_a = a * window
+    return windowed_a
+
 if __name__ == "__main__":
+
+    save_recordings = True
+    rec_dir = './recordings/'
+    if save_recordings:
+        print('\nRecordings will be saved in', rec_dir)
+        if not os.path.exists(rec_dir):
+            os.makedirs(rec_dir)
 
     fs = 192e3
     dur = 2e-3
@@ -107,22 +125,24 @@ if __name__ == "__main__":
         # real robot
         port = Connection.serial_default_port()
         try:
-            th = Thymio(serial_port=port,
-            on_connect=lambda node_id: print(f'\nThymio {node_id} is connected\n'))
-            th.connect()
-            robot = th[th.first_node()]
-            speed = 200
+            speed = 0
             rot_speed = 150
-            lateral_threshold = 10000
+            lateral_threshold = 1000
             ground_threshold = 10000
             air_threshold = 50
             output_threshold = -40
             distance_threshold = 30
+
+            th = Thymio(serial_port=port,
+            on_connect=lambda node_id: print(f'\nThymio {node_id} is connected'))
+            th.connect()
+            robot = th[th.first_node()]            
             # Delay to allow robot initialization of all variables
             time.sleep(1)
             
             robot['motor.left.target'] = speed
             robot['motor.right.target'] = speed
+
             while True:
                 # Robot left the ground
                 if (robot['prox.ground.reflected'][0] < air_threshold or robot['prox.ground.reflected'][1] < air_threshold):
@@ -167,6 +187,10 @@ if __name__ == "__main__":
                 while not audio_in_data.empty():
                     all_input_audio.append(audio_in_data.get())
                 input_audio = np.concatenate(all_input_audio)
+                if save_recordings:
+                    now = datetime.now()
+                    filename = os.path.join(rec_dir, now.strftime('%Y%m%d_%H-%M-%S-%f') + '.wav')
+                    sf.write(filename, input_audio, int(fs))
                 db_rms = 20*np.log10(np.std(input_audio))
                 # Battery is dead or not connected
                 if db_rms < output_threshold:
@@ -174,21 +198,24 @@ if __name__ == "__main__":
                 else:
                     channels_12_78 = np.hstack(
                         (np.reshape(input_audio[:, 0], (-1, 1)),
-                        np.reshape(input_audio[:, 1], (-1, 1)),
-                            np.reshape(input_audio[:, 6], (-1, 1)),
-                            np.reshape(input_audio[:, 7], (-1, 1)))
+                         np.reshape(input_audio[:, 1], (-1, 1)),
+                         np.reshape(input_audio[:, 6], (-1, 1)),
+                         np.reshape(input_audio[:, 7], (-1, 1)))
                             )
                     
                     dist_l, dist_r = sonar_1ch(channels_12_78, sig, Fs=fs)
 
                     distance, filt_sigs, direct_path = mean_env_sonar(input_audio, sig, Fs=fs)
                     distance = distance*100
-
+                    if dist_l < distance:
+                        distance = dist_l
+                    if dist_r < distance:
+                        distance = dist_r
                     if distance < distance_threshold and distance > 0:
                         print('Estimated distance: %3.1f' % distance, '[cm]')
                         print('Estimated distance ch1: %3.1f' % dist_l, '[cm]')
                         print('Estimated distance ch8: %3.1f' % dist_r, '[cm]')                    
-                        theta2, p_das2 = das_filter(filt_sigs[direct_path+48:direct_path+48+384], fs=fs, nch=filt_sigs.shape[1], d=0.003, bw=(low_freq, hi_freq))
+                        theta2, p_das2 = das_filter(windower(filt_sigs[direct_path+96:direct_path+96+336]), fs=fs, nch=filt_sigs.shape[1], d=0.003, bw=(low_freq, hi_freq))
                         if max(p_das2) > 0.005:
                             robot['leds.bottom.left'] = [0, 255, 0]
                             robot['leds.bottom.right'] = [0, 255, 0]
@@ -217,6 +244,7 @@ if __name__ == "__main__":
                         robot['leds.bottom.right'] = [0, 0, 0]
                         robot['motor.left.target'] = speed
                         robot['motor.right.target'] = speed
+
                     #Left proximity sensor
                     if robot['prox.horizontal'][0] > lateral_threshold:
                         robot['leds.bottom.left'] = [0, 0, 255]
@@ -235,6 +263,7 @@ if __name__ == "__main__":
                         robot['leds.bottom.right'] = [0, 0, 0]
                         robot['motor.left.target'] = speed
                         robot['motor.right.target'] = speed
+                        
         except KeyboardInterrupt:            
             print('Terminated by user')
         finally:

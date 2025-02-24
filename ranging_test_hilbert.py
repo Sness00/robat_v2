@@ -98,7 +98,7 @@ if __name__ == "__main__":
     peaks = []
     enough = True
     for i in np.arange(envelopes.shape[1]):
-        idxs, _ = signal.find_peaks(envelopes[:, i], prominence=8)
+        idxs, _ = signal.find_peaks(envelopes[:, i], prominence=5, distance=30)
         if len(idxs) < 2:
             enough = False
         peaks.append(idxs[0:2])
@@ -145,7 +145,7 @@ if __name__ == "__main__":
     
     mean_envelope = np.sum(envelopes, axis=1)/envelopes.shape[1]
     if enough:
-        peaks, _ = signal.find_peaks(mean_envelope, prominence=8)
+        peaks, _ = signal.find_peaks(mean_envelope, prominence=5, distance=30)
         est_dist = (peaks[1] - peaks[0])/fs*343.0/2 + 0.025
 
     if enough:
@@ -163,16 +163,11 @@ if __name__ == "__main__":
     plt.grid()
     plt.tight_layout()
     plt.show()
-
-
-    # plt.figure()
-    # plt.specgram(filtered_signals[:, 0], Fs=fs, NFFT=256, noverlap=128)
-    # plt.show()
     
     # t_plot = np.linspace(0, input_audio.shape[0]/fs, input_audio.shape[0])
     # plt.figure()
     # aa = plt.subplot(4, 2, 1)
-    # plt.plot(input_audio[:, 0])
+    # plt.plot(t_plot, input_audio[:, 0])
     # plt.title('Channel 1 Audio' )
     # plt.grid()
     # for i in np.arange(1, input_audio.shape[1]):

@@ -98,7 +98,7 @@ if __name__ == "__main__":
     peaks = []
     enough = True
     for i in np.arange(envelopes.shape[1]):
-        idxs, _ = signal.find_peaks(envelopes[:, i], prominence=5, distance=30)
+        idxs, _ = signal.find_peaks(envelopes[:, i], prominence=1, distance=64)
         if len(idxs) < 2:
             enough = False
         peaks.append(idxs[0:2])
@@ -145,7 +145,7 @@ if __name__ == "__main__":
     
     mean_envelope = np.sum(envelopes, axis=1)/envelopes.shape[1]
     if enough:
-        peaks, _ = signal.find_peaks(mean_envelope, prominence=5, distance=30)
+        peaks, _ = signal.find_peaks(mean_envelope, prominence=1, distance=64)
         est_dist = (peaks[1] - peaks[0])/fs*343.0/2 + 0.025
 
     if enough:

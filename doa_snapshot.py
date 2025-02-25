@@ -43,6 +43,9 @@ def windower(a):
 if __name__ == "__main__":
 
     fs = 192000
+    nch = 8
+    processed_samples = 450
+    discarded_samples = 200
     dur = 2e-3
     hi_freq = 55e3
     low_freq = 25e3
@@ -83,7 +86,7 @@ if __name__ == "__main__":
     stream = sd.Stream(samplerate=fs,
                         blocksize=0, 
                         device=soundcard, 
-                        channels=(8, 2),
+                        channels=(nch, 2),
                         callback=callback,
                         latency='low')
     with stream:
@@ -109,22 +112,24 @@ if __name__ == "__main__":
         furthest_peak = peaks[0]
 
         current_time = time.time()
-        theta, p_capon = capon_method(windower(filtered_signals[furthest_peak+96:furthest_peak+96+192]), fs=fs, nch=filtered_signals.shape[1], d=0.003, bw=(low_freq, hi_freq))
-        print(1/(time.time() - current_time), 'Capon')
+        theta, p_capon = capon_method(windower(filtered_signals[furthest_peak+discarded_samples:furthest_peak+discarded_samples+processed_samples]), fs=fs, nch=filtered_signals.shape[1], d=0.003, bw=(low_freq, hi_freq), wlen=64)
+        print('Capon: %d [ms]\n' % (1000*(time.time() - current_time)))
         current_time = time.time()
-        theta2, p_das2 = das_filter(windower(filtered_signals[furthest_peak+96:furthest_peak+96+192]), fs=fs, nch=filtered_signals.shape[1], d=0.003, bw=(low_freq, hi_freq))
-        print(1/(time.time() - current_time), 'DaS')
+        theta2, p_das2 = das_filter(windower(filtered_signals[furthest_peak+discarded_samples:furthest_peak+discarded_samples+processed_samples]), fs=fs, nch=filtered_signals.shape[1], d=0.003, bw=(low_freq, hi_freq), wlen=64)
+        print('DaS: %d [ms]\n' % (1000*(time.time() - current_time)))
 
         theta_bar_capon = theta[np.argmax(p_capon)]
         theta_bar_das = theta2[np.argmax(p_das2)]
 
         print(f'Capon: {theta_bar_capon} [deg] DaS: {theta_bar_das} [deg]') 
 
-        fig, ax = plt.subplots(4, 2, sharex=True, sharey=True)
+        fig, ax = plt.subplots(nch//2, 2, sharex=True, sharey=True)
         for i in range(2):
-            for j in range(4):
-                ax[j, i].plot(windower(filtered_signals[furthest_peak+96:furthest_peak+96+192, i*4+j]))
-                ax[j, i].set_title(f'Channel {i*4+j+1}')
+            for j in range(nch//2):
+                ax[j, i].plot(filtered_signals[:, i*nch//2+j])
+                ax[j, i].vlines(np.array([furthest_peak, furthest_peak+discarded_samples, furthest_peak+discarded_samples+processed_samples]),
+                                 -20, 20, colors='r', linestyles='dashed')
+                ax[j, i].set_title(f'Channel {i*nch//2+j+1}')
         plt.tight_layout()
         plt.show()
 

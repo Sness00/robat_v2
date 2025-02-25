@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.signal import stft
 
-def das_filter(y, fs, nch, d, bw, theta=np.linspace(-90, 90, 73), c=343):    
+def das_filter(y, fs, nch, d, bw, theta=np.linspace(-90, 90, 73), c=343, wlen=64):    
     """
     Simple multiband Delay-and-Sum spatial filter implementation.
     Parameters:
@@ -15,8 +15,7 @@ def das_filter(y, fs, nch, d, bw, theta=np.linspace(-90, 90, 73), c=343):
 
     Returns: normalized average of the spatial energy distribution estimation across bands
     """
-    win_len = 128
-    f_spec_axis, _, spectrum = stft(y, fs=fs, window=np.ones((win_len, )), nperseg=win_len, noverlap=win_len-1, axis=0)
+    f_spec_axis, _, spectrum = stft(y, fs=fs, window=np.ones((wlen, )), nperseg=wlen, noverlap=wlen-1, axis=0)
     bands = f_spec_axis[(f_spec_axis >= bw[0]) & (f_spec_axis <= bw[1])]
     p = np.zeros_like(theta, dtype=complex)
     

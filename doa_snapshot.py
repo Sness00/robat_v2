@@ -1,4 +1,5 @@
 import os
+import argparse
 import time
 import queue
 import numpy as np
@@ -8,6 +9,7 @@ import sounddevice as sd
 from broadcast_pcmd3180 import activate_mics
 from das_v2 import das_filter
 from capon import capon_method
+from music import music
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
@@ -19,7 +21,7 @@ def get_soundcard_iostream(device_list):
             return (i, i)
         
 def pow_two_pad_and_window(vec, fs, show=False):
-    window = signal.windows.tukey(len(vec), alpha=0.2)
+    window = signal.windows.tukey(len(vec), alpha=0.5)
     windowed_vec = vec * window
     padded_windowed_vec = np.pad(windowed_vec, (0, 2**int(np.ceil(np.log2(len(windowed_vec)))) - len(windowed_vec)))
     if show:
@@ -41,20 +43,37 @@ def windower(a):
     return windowed_a
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Provide method and verbose option"
+    )
+    parser.add_argument("--method", required=True, type=str)
+    parser.add_argument("--verbose", required=False, type=bool, default=False)
+    args = parser.parse_args()
+
+    METHOD = args.method
+    verbose = args.verbose
 
     fs = 192000
     nch = 8
-    processed_samples = 450
-    discarded_samples = 200
-    dur = 2e-3
-    hi_freq = 55e3
+
+    if METHOD == 'das':
+        spatial_filter = das_filter
+    elif METHOD == 'capon':
+        spatial_filter = capon_method
+    elif METHOD == 'music':
+        spatial_filter = music
+    
+    processed_samples = 180
+    discarded_samples = 480
+    dur = 3e-3
+    hi_freq = 45e3
     low_freq = 25e3
 
     t_tone = np.linspace(0, dur, int(fs*dur))
     chirp = signal.chirp(t_tone, hi_freq, t_tone[-1], low_freq)    
     sig = pow_two_pad_and_window(chirp, fs, show=False)
 
-    silence_dur = 15 # [ms]
+    silence_dur = 20 # [ms]
     silence_samples = int(silence_dur * fs/1000)
     silence_vec = np.zeros((silence_samples, ))
     full_sig = np.reshape(pow_two(np.concatenate((sig, silence_vec))), (-1, 1))
@@ -103,50 +122,58 @@ if __name__ == "__main__":
         print('Low output level. Replace amp battery')
     else:
         valid_channels_audio = input_audio
-        filtered_signals = signal.correlate(valid_channels_audio, np.reshape(sig, (-1, 1)), 'full', method='fft')
+        filtered_signals = signal.correlate(valid_channels_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
         envelopes = np.abs(signal.hilbert(filtered_signals, axis=0))
 
         mean_env = np.sum(envelopes, axis=1)/envelopes.shape[1]
-        peaks, _ = signal.find_peaks(mean_env, prominence=7, distance=30)
+        peaks, _ = signal.find_peaks(mean_env, prominence=1, distance=30)
 
         furthest_peak = peaks[0]
 
-        current_time = time.time()
-        theta, p_capon = capon_method(windower(filtered_signals[furthest_peak+discarded_samples:furthest_peak+discarded_samples+processed_samples]), fs=fs, nch=filtered_signals.shape[1], d=0.003, bw=(low_freq, hi_freq), wlen=64)
-        print('Capon: %d [ms]\n' % (1000*(time.time() - current_time)))
-        current_time = time.time()
-        theta2, p_das2 = das_filter(windower(filtered_signals[furthest_peak+discarded_samples:furthest_peak+discarded_samples+processed_samples]), fs=fs, nch=filtered_signals.shape[1], d=0.003, bw=(low_freq, hi_freq), wlen=64)
-        print('DaS: %d [ms]\n' % (1000*(time.time() - current_time)))
+        if verbose:
+            fig, ax = plt.subplots(nch//2, 2, sharex=True, sharey=True)
+            plt.suptitle('Input audio')
+            for i in range(2):
+                for j in range(nch//2):
+                    ax[j, i].plot(input_audio[:, i*nch//2+j])
+                    ax[j, i].set_title(f'Channel {i*nch//2+j+1}')
+                    ax[j, i].grid()
+            plt.tight_layout()
+            plt.show()
 
-        theta_bar_capon = theta[np.argmax(p_capon)]
-        theta_bar_das = theta2[np.argmax(p_das2)]
+            fig, ax = plt.subplots(nch//2, 2, sharex=True, sharey=True)
+            plt.suptitle('Filtered signals')
+            for i in range(2):
+                for j in range(nch//2):
+                    ax[j, i].plot(filtered_signals[:, i*nch//2+j])
+                    ax[j, i].vlines(np.array([furthest_peak, furthest_peak+discarded_samples, furthest_peak+discarded_samples+processed_samples]),
+                                    -20, 20, colors='r', linestyles='dashed')
+                    ax[j, i].set_title(f'Channel {i*nch//2+j+1}')
+                    ax[j, i].grid()
+            plt.tight_layout()
+            plt.show()
 
-        print(f'Capon: {theta_bar_capon} [deg] DaS: {theta_bar_das} [deg]') 
+            fig, ax = plt.subplots(nch//2, 2, sharex=True, sharey=True)
+            plt.suptitle('Signals fed to spatial filter')
+            for i in range(2):
+                for j in range(nch//2):
+                    ax[j, i].plot(windower(filtered_signals[furthest_peak+discarded_samples:furthest_peak+discarded_samples+processed_samples, i*nch//2+j]))
+                    ax[j, i].set_title(f'Channel {i*nch//2+j+1}')
+                    ax[j, i].grid()
+            plt.tight_layout()
+            plt.show()
 
-        fig, ax = plt.subplots(nch//2, 2, sharex=True, sharey=True)
-        for i in range(2):
-            for j in range(nch//2):
-                ax[j, i].plot(filtered_signals[:, i*nch//2+j])
-                ax[j, i].vlines(np.array([furthest_peak, furthest_peak+discarded_samples, furthest_peak+discarded_samples+processed_samples]),
-                                 -20, 20, colors='r', linestyles='dashed')
-                ax[j, i].set_title(f'Channel {i*nch//2+j+1}')
-        plt.tight_layout()
-        plt.show()
+        theta, p = spatial_filter(windower(filtered_signals[furthest_peak+discarded_samples:furthest_peak+discarded_samples+processed_samples]), fs=fs, nch=filtered_signals.shape[1], d=0.003, bw=(low_freq, hi_freq), wlen=64)
+        theta_bar = theta[np.argmax(p)]
 
-        fig, (ax1, ax2) = plt.subplots(1, 2, subplot_kw={'projection': 'polar'})
-        plt.suptitle('Capon Method vs DaS')
-        ax1.plot(np.deg2rad(theta), 20*np.log10(p_capon))
-        ax1.set_title('Capon Method Output')
-        # Shift axes by -90 degrees
-        ax1.set_theta_offset(np.pi/2)
-        # Limit theta between -90 and 90 degrees
-        ax1.set_theta_direction(1)
-        ax1.set_xlim(-np.pi/2, np.pi/2)
-        # ax.set_ylim(-20, 40)        
-        ax1.grid(True)
+        print(f'DoA: {theta_bar} [deg]')
 
-        ax2.plot(np.deg2rad(theta2), 20*np.log10(p_das2))
-        ax2.set_title('DaS Filter Output')
+        fig, ax2 = plt.subplots(subplot_kw={'projection': 'polar'})
+
+        ax2.plot(np.deg2rad(theta), 20*np.log10(p))
+        ax2.set_title('Pseudospectrum Magnitude\nSpatial Filter: ' + METHOD)
+        ax2.set_xlabel('Angle [deg]')
+        ax2.set_ylabel('Magnitude [dB]')
         # Shift axes by -90 degrees
         ax2.set_theta_offset(np.pi/2)
         # Limit theta between -90 and 90 degrees

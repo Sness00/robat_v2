@@ -1,19 +1,20 @@
 import numpy as np
 from scipy.signal import stft
 
-def capon_method(y, fs, nch, d, bw, theta=np.linspace(-90, 90, 73), c=343, wlen=64):    
+def music(y, fs, nch, d, bw, theta=np.linspace(-90, 90, 73), c=343, wlen=64, ns=2):    
     """
-    Simple multiband Capon Method spatial filter implementation.
+    Simple multiband Delay-and-Sum spatial filter implementation.
     Parameters:
     - y: mic array signals
     - fs: sampling rate
     - nch: number of mics in the array
+    - ns: number of sources
     - d: mic spacing
     - bw: (low freq, high freq)
     - theta: angle vector
     - c: sound speed
 
-    Returns: average spatial energy distribution estimation across bands
+    Returns: normalized average of the spatial energy distribution estimation across bands
     """
     f_spec_axis, _, spectrum = stft(y, fs=fs, window=np.ones((wlen, )), nperseg=wlen, noverlap=wlen-1, axis=0)
     bands = f_spec_axis[(f_spec_axis >= bw[0]) & (f_spec_axis <= bw[1])]
@@ -25,10 +26,11 @@ def capon_method(y, fs, nch, d, bw, theta=np.linspace(-90, 90, 73), c=343, wlen=
         a_H = a.T.conj()     
         spec = spectrum[f_spec_axis == f_c, :, :].squeeze()
         cov_est = np.cov(spec, bias=True)
-        inv_cov_est = np.linalg.pinv(cov_est)
-        
+        _, V = np.linalg.eig(cov_est)
+        V_n = V[:, ns:]
+        V_n_H = V_n.T.conj()
         for i, _ in enumerate(theta):
-            p[i] += 1/(a_H[i, :] @ inv_cov_est @ a[:, i])
+          p[i] += 1/(a_H[i, :] @ V_n @ V_n_H @ a[:, i])
     
     mag_p = np.abs(p)/len(bands)
         

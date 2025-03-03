@@ -29,7 +29,8 @@ def pow_two(vec):
     return np.pad(vec, (0, 2**int(np.ceil(np.log2(len(vec)))) - len(vec)))
 
 if __name__ == "__main__":
-
+    
+    verbose = False
     fs = 192000
     dur = 2e-3
 
@@ -91,14 +92,14 @@ if __name__ == "__main__":
 
 
     valid_channels_audio = input_audio
-    filtered_signals = signal.correlate(valid_channels_audio, np.reshape(sig, (-1, 1)), 'full', method='fft')
+    filtered_signals = signal.correlate(valid_channels_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
     envelopes = np.abs(signal.hilbert(filtered_signals, axis=0))
 
     
     peaks = []
     enough = True
     for i in np.arange(envelopes.shape[1]):
-        idxs, _ = signal.find_peaks(envelopes[:, i], prominence=1, distance=64)
+        idxs, _ = signal.find_peaks(envelopes[:, i], prominence=2, distance=64)
         if len(idxs) < 2:
             enough = False
         peaks.append(idxs[0:2])
@@ -112,44 +113,35 @@ if __name__ == "__main__":
         for i, p in enumerate(peaks):
             dist = (p[1] - p[0])/fs*343.0/2 + 0.025
             estimated_distances.append(dist)
-            print('Estimated distance for channel', i+1, ':', '%.5f' % dist, '[m]')    
+            print('Estimated distance for channel', i+1, ':', '%.3f' % dist, '[m]')    
             mean_dist += dist
         mean_dist /= len(peaks)
         peaks_array = np.array(peaks)
 
-        print('Estimated mean distance: %.5f' % mean_dist, '[m]')
+        print('Estimated mean distance: %.3f' % mean_dist, '[m]')
 
     t_plot = np.linspace(0, envelopes.shape[0]/fs, envelopes.shape[0])
-    plt.figure()
-    aa = plt.subplot(421)
-    if enough:
-        plt.vlines(peaks_array[0, :]/fs, 0, max(envelopes[:, 0]), linestyles='dashed', colors='r')
-    plt.plot(t_plot, envelopes[:, 0])
-    plt.title('Envelope of Channel 1')
-    plt.minorticks_on()
-    plt.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
-    plt.grid()
-
-    for i in np.arange(1, envelopes.shape[1]):
-        plt.subplot(4, 2, i+1, sharex=aa, sharey=aa)
-        if enough:
-            plt.vlines(peaks_array[i, :]/fs, 0, max(envelopes[:, i]), linestyles='dashed', colors='r')
-        plt.plot(t_plot, envelopes[:, i])
-        plt.title('Envelope of Channel %d' %(i+1))
-        plt.minorticks_on()
-        plt.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
-        plt.grid()
-
+    fig, ax = plt.subplots(4, 2, sharex=True, sharey=True)
+    plt.suptitle('Channel Envelopes')
+    for i in range(envelopes.shape[1]//2):
+        for j in range(2):
+            ax[i, j].plot(t_plot, envelopes[:, 2*i+j])
+            if enough:
+                ax[i, j].vlines(peaks_array[2*i+j]/fs, 0, max(envelopes[:, 2*i+j]), linestyles='dashed', colors='r')
+            ax[i, j].set_title('Channel %d' % (2*i+j+1))
+            ax[i, j].minorticks_on()
+            ax[i, j].grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
+            ax[i, j].grid()
     plt.tight_layout()
     plt.show()
-    
+
     mean_envelope = np.sum(envelopes, axis=1)/envelopes.shape[1]
     if enough:
-        peaks, _ = signal.find_peaks(mean_envelope, prominence=1, distance=64)
+        peaks, _ = signal.find_peaks(mean_envelope, prominence=2, distance=64)
         est_dist = (peaks[1] - peaks[0])/fs*343.0/2 + 0.025
 
     if enough:
-        print('Estimated distance from the mean envelope:', '%.5f' % est_dist, '[m]')
+        print('Estimated distance from the mean envelope:', '%.3f' % est_dist, '[m]')
     else:
         print('Not enough')
 
@@ -164,26 +156,30 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.show()
     
-    # t_plot = np.linspace(0, input_audio.shape[0]/fs, input_audio.shape[0])
-    # plt.figure()
-    # aa = plt.subplot(4, 2, 1)
-    # plt.plot(t_plot, input_audio[:, 0])
-    # plt.title('Channel 1 Audio' )
-    # plt.grid()
-    # for i in np.arange(1, input_audio.shape[1]):
-    #     plt.subplot(4, 2, i+1, sharex=aa, sharey=aa)
-    #     plt.plot(t_plot, input_audio[:, i])
-    #     plt.title('Channel %d Audio' % (i+1))
-    #     plt.grid()
-    # plt.tight_layout()
-    # plt.show()
+    if verbose: 
+        t_plot1 = np.linspace(0, input_audio.shape[0]/fs, input_audio.shape[0])
+        fig, ax = plt.subplots(4, 2, sharex=True, sharey=True)
+        plt.suptitle('Recorded Audio')
+        for i in range(input_audio.shape[1]//2):
+            for j in range(2):
+                ax[i, j].plot(t_plot1, input_audio[:, 2*i+j])
+                ax[i, j].set_title('Channel %d' % (2*i+j+1))
+                ax[i, j].minorticks_on()
+                ax[i, j].grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
+                ax[i, j].grid()
+        plt.tight_layout()
+        plt.show()
 
-    # t_plot = np.linspace(0, filtered_signals.shape[0]/fs, filtered_signals.shape[0])
-    # plt.figure()
-    # for i in np.arange(0, filtered_signals.shape[1]):
-    #     plt.subplot(4, 2, i+1)
-    #     plt.plot(t_plot, filtered_signals[:, i])
-    #     plt.title('Matched Filter Channel %d' % (i+1))
-    # plt.tight_layout()
-    # plt.show()
+        t_plot2 = np.linspace(0, filtered_signals.shape[0]/fs, filtered_signals.shape[0])
+        fig2, ax2 = plt.subplots(4, 2, sharex=True, sharey=True)
+        plt.suptitle('Matched Filter Output')
+        for i in range(filtered_signals.shape[1]//2):
+            for j in range(2):
+                ax2[i, j].plot(t_plot2, filtered_signals[:, 2*i+j])
+                ax2[i, j].set_title('Channel %d' % (2*i+j+1))
+                ax2[i, j].minorticks_on()
+                ax2[i, j].grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
+                ax2[i, j].grid()
+        plt.tight_layout()
+        plt.show()
         

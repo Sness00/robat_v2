@@ -4,11 +4,12 @@ import numpy as np
 import scipy.signal as signal
 import queue
 import time
-from broadcast_pcmd3180 import activate_mics
-from das_v2 import das_filter_v2
+import argparse
 from matplotlib.animation import FuncAnimation
+from broadcast_pcmd3180 import activate_mics
+from das_v2 import das_filter
 from capon import capon_method
-from das_filter import das_filter
+from music import music
 
 def get_soundcard_iostream(device_list):
     for i, each in enumerate(device_list):
@@ -32,18 +33,40 @@ def pow_two_pad_and_window(vec, fs, show=False):
 def pow_two(vec):
     return np.pad(vec, (0, 2**int(np.ceil(np.log2(len(vec)))) - len(vec)))
 
+def windower(a):
+    window = signal.windows.tukey(len(a), alpha=0.2)
+    if len(a.shape) > 1:
+        window = np.reshape(window, (-1, 1))
+    windowed_a = a * window
+    return windowed_a
+
 if __name__ == "__main__":
 
+    parser = argparse.ArgumentParser(
+        description="Provide method and verbose option"
+    )
+    parser.add_argument("--method", required=True, type=str)
+    args = parser.parse_args()
+
+    METHOD = args.method
     fs = 192000
     dur = 2e-3
     hi_freq = 55e3
-    low_freq = 25e3
+    low_freq = 15e3
+    processed_samples = 180
+    discarded_samples = 480
+    if METHOD == 'das':
+        spatial_filter = das_filter
+    elif METHOD == 'capon':
+        spatial_filter = capon_method
+    elif METHOD == 'music':
+        spatial_filter = music
 
     t_tone = np.linspace(0, dur, int(fs*dur))
     chirp = signal.chirp(t_tone, hi_freq, t_tone[-1], low_freq)    
     sig = pow_two_pad_and_window(chirp, fs, show=False)
 
-    silence_dur = 15 # [ms]
+    silence_dur = 20 # [ms]
     silence_samples = int(silence_dur * fs/1000)
     silence_vec = np.zeros((silence_samples, ))
     full_sig = pow_two(np.concatenate((sig, silence_vec)))
@@ -95,7 +118,7 @@ if __name__ == "__main__":
                 print('Low output level. Replace amp battery')
             else:
                 valid_channels_audio = input_audio
-                filtered_signals = signal.correlate(valid_channels_audio, np.reshape(sig, (-1, 1)), 'full', method='fft')
+                filtered_signals = signal.correlate(valid_channels_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
                 envelopes = np.abs(signal.hilbert(filtered_signals, axis=0))
 
                 mean_env = np.sum(envelopes, axis=1)/envelopes.shape[1]
@@ -103,24 +126,22 @@ if __name__ == "__main__":
 
                 furthest_peak = peaks[0]
 
-                # fig, axs = plt.subplots(8, 1, sharex=True, sharey=True)
-                # peaks_array = np.array(peaks)
-                # for i in range(8):
-                #     axs[i].plot(filtered_signals[:, i])
-                #     axs[i].vlines(np.array([furthest_peak, furthest_peak+70, 3500]), ymin=-10, ymax=10, colors='red')
-                #     axs[i].set_title('Matched Filter Channel %d' % (i+1))
-                #     axs[i].grid(True)
-                # plt.tight_layout()
-                # plt.show()
-
-                theta2, p_das2 = capon_method(filtered_signals[furthest_peak+70:furthest_peak+70+384, ], fs=fs, nch=filtered_signals.shape[1], d=0.003, bw=(low_freq, hi_freq))
-                if max(p_das2) > 0.005:
-                    theta_hat = np.argmax(p_das2)
+                theta2, p_das2 = spatial_filter(windower(filtered_signals[furthest_peak+discarded_samples:furthest_peak+discarded_samples+processed_samples])
+                                                , fs=fs, nch=filtered_signals.shape[1], d=0.003, bw=(low_freq, hi_freq))
+                p_dB = 20*np.log10(p_das2)
+                if max(p_dB) > -46:
+                    theta_hat = np.argmax(p_dB)
                     print('Estimated DoA: %.2f [deg]' % theta2[theta_hat])
                 else:
                     print('No DoA detected')
-                line.set_ydata(20*np.log10(p_das2))
-                return line,
+                
+                if max(p_dB) > 0:
+                    ax.set_ylim(1.1*min(p_dB), 1.1*max(p_dB))
+                else:
+                    ax.set_ylim(1.1*min(p_dB), 0.9*max(p_dB))
+                line.set_ydata(p_dB)
+
+                return line
 
 
         fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
@@ -128,14 +149,13 @@ if __name__ == "__main__":
         # Shift axes by -90 degrees
         ax.set_theta_offset(np.pi/2)
         # Limit theta between -90 and 90 degrees
-        ax.set_theta_direction(-1)
         ax.set_xlim(-np.pi/2, np.pi/2)
         # ax.set_ylim(-20, 40)        
         ax.grid(True)
         line, = ax.plot(np.linspace(-np.pi/2, np.pi/2, 73), 0*np.sin(np.linspace(-np.pi/2, np.pi/2, 73)))
-        ani = FuncAnimation(fig, update, frames=range(10), blit=False, interval=40)
+        ani = FuncAnimation(fig, update, interval=100)
         plt.show()
 
-    except KeyboardInterrupt:
-        print('Terminated by user')
+    except Exception as e:
+        print(e)
     

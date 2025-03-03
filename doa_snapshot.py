@@ -9,7 +9,7 @@ import sounddevice as sd
 from broadcast_pcmd3180 import activate_mics
 from das_v2 import das_filter
 from capon import capon_method
-from music import music
+from music_v2 import music
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
@@ -47,7 +47,7 @@ if __name__ == "__main__":
         description="Provide method and verbose option"
     )
     parser.add_argument("--method", required=True, type=str)
-    parser.add_argument("--verbose", required=False, type=bool, default=False)
+    parser.add_argument("--verbose", required=False, type=int, default=0)
     args = parser.parse_args()
 
     METHOD = args.method
@@ -63,11 +63,11 @@ if __name__ == "__main__":
     elif METHOD == 'music':
         spatial_filter = music
     
-    processed_samples = 180
+    processed_samples = 1024
     discarded_samples = 480
     dur = 3e-3
-    hi_freq = 45e3
-    low_freq = 25e3
+    hi_freq = 60e3
+    low_freq = 20e3
 
     t_tone = np.linspace(0, dur, int(fs*dur))
     chirp = signal.chirp(t_tone, hi_freq, t_tone[-1], low_freq)    
@@ -118,7 +118,7 @@ if __name__ == "__main__":
         all_input_audio.append(audio_in_data.get())            
     input_audio = np.concatenate(all_input_audio)
     db_rms = 20*np.log10(np.std(input_audio))
-    if db_rms < -50:
+    if db_rms < -40:
         print('Low output level. Replace amp battery')
     else:
         valid_channels_audio = input_audio
@@ -163,7 +163,10 @@ if __name__ == "__main__":
             plt.tight_layout()
             plt.show()
 
-        theta, p = spatial_filter(windower(filtered_signals[furthest_peak+discarded_samples:furthest_peak+discarded_samples+processed_samples]), fs=fs, nch=filtered_signals.shape[1], d=0.003, bw=(low_freq, hi_freq), wlen=64)
+        theta, p = spatial_filter(
+            windower(filtered_signals[furthest_peak+discarded_samples:furthest_peak+discarded_samples+processed_samples]),
+                                   fs=fs, nch=filtered_signals.shape[1], d=2.68e-3, bw=(low_freq, hi_freq), wlen=64
+                                   )
         theta_bar = theta[np.argmax(p)]
 
         print(f'DoA: {theta_bar} [deg]')

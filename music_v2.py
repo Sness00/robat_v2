@@ -3,7 +3,7 @@ from scipy.signal import stft
 
 def music(y, fs, nch, d, bw, theta=np.linspace(-90, 90, 73), c=343, wlen=64, ns=1):    
     """
-    Simple multiband Delay-and-Sum spatial filter implementation.
+    Simple multiband MUltiple SIgnal Classification spatial filter implementation.
     Parameters:
     - y: mic array signals
     - fs: sampling rate
@@ -13,7 +13,8 @@ def music(y, fs, nch, d, bw, theta=np.linspace(-90, 90, 73), c=343, wlen=64, ns=
     - bw: (low freq, high freq)
     - theta: angle vector
     - c: sound speed
-
+    - wlen: window length for stft
+    - ns: expected number of sources
     Returns: normalized average of the spatial energy distribution estimation across bands
     """
     f_spec_axis, _, spectrum = stft(y, fs=fs, window=np.ones((wlen, )), nperseg=wlen, noverlap=wlen-1, axis=0)
@@ -26,8 +27,10 @@ def music(y, fs, nch, d, bw, theta=np.linspace(-90, 90, 73), c=343, wlen=64, ns=
         a_H = a.T.conj()     
         spec = spectrum[f_spec_axis == f_c, :, :].squeeze()
         cov_est = np.cov(spec, bias=True)
-        _, V = np.linalg.eig(cov_est)
-        V_n = V[:, ns:]
+        lambdas, V = np.linalg.eig(cov_est)
+        indices = np.argsort(lambdas)[::-1]
+        V_sorted = V[indices]
+        V_n = V_sorted[:, ns:]
         V_n_H = V_n.T.conj()
         for i, _ in enumerate(theta):
           p[i] += 1/(a_H[i, :] @ V_n @ V_n_H @ a[:, i])

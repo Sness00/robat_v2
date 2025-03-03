@@ -9,7 +9,7 @@ from matplotlib.animation import FuncAnimation
 from broadcast_pcmd3180 import activate_mics
 from das_v2 import das_filter
 from capon import capon_method
-from music import music
+from music_v2 import music
 
 def get_soundcard_iostream(device_list):
     for i, each in enumerate(device_list):
@@ -50,9 +50,9 @@ if __name__ == "__main__":
 
     METHOD = args.method
     fs = 192000
-    dur = 2e-3
-    hi_freq = 55e3
-    low_freq = 15e3
+    dur = 3e-3
+    hi_freq = 60e3
+    low_freq = 20e3
     processed_samples = 180
     discarded_samples = 480
     if METHOD == 'das':
@@ -126,14 +126,11 @@ if __name__ == "__main__":
 
                 furthest_peak = peaks[0]
 
-                theta2, p_das2 = spatial_filter(windower(filtered_signals[furthest_peak+discarded_samples:furthest_peak+discarded_samples+processed_samples])
-                                                , fs=fs, nch=filtered_signals.shape[1], d=0.003, bw=(low_freq, hi_freq))
-                p_dB = 20*np.log10(p_das2)
-                if max(p_dB) > -46:
-                    theta_hat = np.argmax(p_dB)
-                    print('Estimated DoA: %.2f [deg]' % theta2[theta_hat])
-                else:
-                    print('No DoA detected')
+                _, p = spatial_filter(
+                    windower(filtered_signals[furthest_peak+discarded_samples:furthest_peak+discarded_samples+processed_samples]),
+                     fs=fs, nch=filtered_signals.shape[1], d=2.68e-3, bw=(low_freq, hi_freq)
+                     )
+                p_dB = 20*np.log10(p)
                 
                 if max(p_dB) > 0:
                     ax.set_ylim(1.1*min(p_dB), 1.1*max(p_dB))
@@ -153,7 +150,7 @@ if __name__ == "__main__":
         # ax.set_ylim(-20, 40)        
         ax.grid(True)
         line, = ax.plot(np.linspace(-np.pi/2, np.pi/2, 73), 0*np.sin(np.linspace(-np.pi/2, np.pi/2, 73)))
-        ani = FuncAnimation(fig, update, interval=100)
+        ani = FuncAnimation(fig, update, interval=100, cache_frame_data=False)
         plt.show()
 
     except Exception as e:

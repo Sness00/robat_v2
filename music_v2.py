@@ -20,7 +20,7 @@ def music(y, fs, nch, d, bw, theta=np.linspace(-90, 90, 73), c=343, wlen=64, ns=
     Returns: normalized average of the spatial energy distribution estimation across bands
     """
     f_spec_axis, _, spectrum = stft(y, fs=fs, window=np.ones((wlen, )), nperseg=wlen, noverlap=wlen-1, axis=0)
-    bands = f_spec_axis[(f_spec_axis >= bw[0]) & (f_spec_axis <= bw[1])]
+    bands = f_spec_axis[(f_spec_axis >= bw[0] + 7500) & (f_spec_axis <= bw[1] - 7500)]
     p = np.zeros_like(theta, dtype=complex)
     p_i = np.zeros((len(theta), 1), dtype=complex)
     
@@ -42,6 +42,7 @@ def music(y, fs, nch, d, bw, theta=np.linspace(-90, 90, 73), c=343, wlen=64, ns=
           plt.figure()
           plt.polar(np.deg2rad(theta), 20*np.log10(np.abs(p_i)))
           plt.xlim((-np.pi/2, np.pi/2))
+          plt.ylim((-22, 0))
           plt.title(str(f_c))
           plt.show()
     mag_p = np.abs(p)/len(bands)

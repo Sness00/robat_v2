@@ -123,7 +123,8 @@ if __name__ == "__main__":
     else:
         valid_channels_audio = input_audio
         filtered_signals = signal.correlate(valid_channels_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
-        envelopes = np.abs(signal.hilbert(filtered_signals, axis=0))
+        roll_filt_sigs = np.roll(filtered_signals, -len(sig)//2, axis=0)
+        envelopes = np.abs(signal.hilbert(roll_filt_sigs, axis=0))
 
         mean_env = np.sum(envelopes, axis=1)/envelopes.shape[1]
         peaks, _ = signal.find_peaks(mean_env, prominence=1, distance=30)
@@ -131,42 +132,91 @@ if __name__ == "__main__":
         furthest_peak = peaks[0]
 
         if verbose:
-            fig, ax = plt.subplots(nch//2, 2, sharex=True, sharey=True)
-            plt.suptitle('Input audio')
-            for i in range(2):
-                for j in range(nch//2):
-                    ax[j, i].plot(input_audio[:, i*nch//2+j])
-                    ax[j, i].set_title(f'Channel {i*nch//2+j+1}')
-                    ax[j, i].grid()
-            plt.tight_layout()
-            plt.show()
-
-            fig, ax = plt.subplots(nch//2, 2, sharex=True, sharey=True)
-            plt.suptitle('Filtered signals')
-            for i in range(2):
-                for j in range(nch//2):
-                    ax[j, i].plot(filtered_signals[:, i*nch//2+j])
-                    ax[j, i].vlines(np.array([furthest_peak, furthest_peak+discarded_samples, furthest_peak+discarded_samples+processed_samples]),
+            fig = plt.figure()
+            subfigs = fig.subfigures(nch//2, 2)
+            i = 0
+            for row in subfigs:
+                for subfig in row:
+            # Create a 2x1 subplot within each subfigure
+                    (ax1, ax2) = subfig.subplots(2, 1)
+                    # subfig.suptitle('Channel %d' % (i+1))
+                    ax1.plot(input_audio[:, i])
+                    ax1.vlines(np.array([furthest_peak, furthest_peak+discarded_samples, furthest_peak+discarded_samples+processed_samples]),
+                                    -0.2, 0.2, colors='r', linestyles='dashed')
+                    ax2.plot(roll_filt_sigs[:, i])
+                    ax2.vlines(np.array([furthest_peak, furthest_peak+discarded_samples, furthest_peak+discarded_samples+processed_samples]),
                                     -20, 20, colors='r', linestyles='dashed')
-                    ax[j, i].set_title(f'Channel {i*nch//2+j+1}')
-                    ax[j, i].grid()
-            plt.tight_layout()
+                    i += 1
             plt.show()
+            # plt.suptitle('Input audio')
+            # for i in range(2):
+            #     for j in range(nch//2):
+            #         ax[j, i].plot(input_audio[:, i*nch//2+j])
+            #         ax[j, i].vlines(np.array([furthest_peak, furthest_peak+discarded_samples, furthest_peak+discarded_samples+processed_samples]),
+            #                         -0.2, 0.2, colors='r', linestyles='dashed')
+            #         plt.subplot(2, 1, 2)
+            #         ax[j, i].plot(filtered_signals[:, i*nch//2+j])
+            #         ax[j, i].vlines(np.array([furthest_peak, furthest_peak+discarded_samples, furthest_peak+discarded_samples+processed_samples]),
+            #                         -20, 20, colors='r', linestyles='dashed')
+            #         ax[j, i].set_title(f'Channel {i*nch//2+j+1}')
+            #         ax[j, i].grid()
+            # plt.tight_layout()
+            # plt.show()
 
-            fig, ax = plt.subplots(nch//2, 2, sharex=True, sharey=True)
-            plt.suptitle('Signals fed to spatial filter')
-            for i in range(2):
-                for j in range(nch//2):
-                    ax[j, i].plot(windower(filtered_signals[furthest_peak+discarded_samples:furthest_peak+discarded_samples+processed_samples, i*nch//2+j]))
-                    ax[j, i].set_title(f'Channel {i*nch//2+j+1}')
-                    ax[j, i].grid()
-            plt.tight_layout()
-            plt.show()
+            # fig, ax = plt.subplots(nch//2, 2, sharex=True, sharey=True)
+            # plt.suptitle('Input Audio Spectrograms')
+            # for i in range(2):
+            #     for j in range(nch//2):
+            #         ax[j, i].specgram(input_audio[:, i*nch//2+j], NFFT=1024, Fs=fs, noverlap=512, sides='onesided', scale_by_freq=False, scale='dB')
+            #         ax[j, i].set_title(f'Channel {i*nch//2+j+1}')
+            # plt.tight_layout()
+            # plt.show()
+
+            # plt.figure()
+            # plt.specgram(input_audio[:, 0], NFFT=64, Fs=fs, noverlap=32, sides='onesided', scale_by_freq=False, scale='dB')
+            # plt.title('Channel 1 Spectrogram')
+            # plt.show()
+
+            # fig, ax = plt.subplots(nch//2, 2, sharex=True, sharey=True)
+            # plt.suptitle('Filtered signals')
+            # for i in range(2):
+            #     for j in range(nch//2):
+            #         ax[j, i].plot(filtered_signals[:, i*nch//2+j])
+            #         ax[j, i].vlines(np.array([furthest_peak, furthest_peak+discarded_samples, furthest_peak+discarded_samples+processed_samples]),
+            #                         -20, 20, colors='r', linestyles='dashed')
+            #         ax[j, i].set_title(f'Channel {i*nch//2+j+1}')
+            #         ax[j, i].grid()
+            # plt.tight_layout()
+            # plt.show()
+
+            # plt.figure()
+            # plt.specgram(filtered_signals[:, 0], NFFT=1024, Fs=fs, noverlap=512, sides='onesided', scale_by_freq=False, scale='dB')
+            # plt.title('Filtered Channel 1 Spectrogram')
+            # plt.show()
+
+            # fig, ax = plt.subplots(nch//2, 2, sharex=True, sharey=True)
+            # plt.suptitle('Filtered signals spectrograms')
+            # for i in range(2):
+            #     for j in range(nch//2):
+            #         ax[j, i].specgram(filtered_signals[:, i*nch//2+j], NFFT=1024, Fs=fs, noverlap=512, sides='onesided', scale_by_freq=False, scale='dB')
+            #         ax[j, i].set_title(f'Channel {i*nch//2+j+1}')
+            # plt.tight_layout()
+            # plt.show()
+
+            # fig, ax = plt.subplots(nch//2, 2, sharex=True, sharey=True)
+            # plt.suptitle('Signals fed to spatial filter')
+            # for i in range(2):
+            #     for j in range(nch//2):
+            #         ax[j, i].plot(windower(filtered_signals[furthest_peak+discarded_samples:furthest_peak+discarded_samples+processed_samples, i*nch//2+j]))
+            #         ax[j, i].set_title(f'Channel {i*nch//2+j+1}')
+            #         ax[j, i].grid()
+            # plt.tight_layout()
+            # plt.show()
 
         theta, p = spatial_filter(
             windower(filtered_signals[furthest_peak+discarded_samples:furthest_peak+discarded_samples+processed_samples]),
-                                   fs=fs, nch=filtered_signals.shape[1], d=2.70e-3, bw=(low_freq, hi_freq), show=verbose,
-                                   )
+                                    fs=fs, nch=filtered_signals.shape[1], d=2.70e-3, bw=(low_freq, hi_freq), show=False, wlen=128
+                                    )
         theta_bar = theta[np.argmax(p)]
 
         print(f'DoA: {theta_bar} [deg]')

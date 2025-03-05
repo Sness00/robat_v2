@@ -215,7 +215,7 @@ if __name__ == "__main__":
                         print('Estimated distance: %3.1f' % distance, '[cm]')
                         print('Estimated distance ch1: %3.1f' % dist_l, '[cm]')
                         print('Estimated distance ch8: %3.1f' % dist_r, '[cm]')                    
-                        theta2, p_das2 = das_filter(windower(filt_sigs[direct_path+96:direct_path+96+336]), fs=fs, nch=filt_sigs.shape[1], d=0.003, bw=(low_freq, hi_freq))
+                        theta2, p_das2 = das_filter(windower(filt_sigs[direct_path+96:direct_path+96+336]), fs=fs, nch=filt_sigs.shape[1], d=2.70e-3, bw=(low_freq, hi_freq))
                         if max(p_das2) > 0.005:
                             robot['leds.bottom.left'] = [0, 255, 0]
                             robot['leds.bottom.right'] = [0, 255, 0]

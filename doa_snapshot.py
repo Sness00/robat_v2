@@ -165,7 +165,7 @@ if __name__ == "__main__":
 
         theta, p = spatial_filter(
             windower(filtered_signals[furthest_peak+discarded_samples:furthest_peak+discarded_samples+processed_samples]),
-                                   fs=fs, nch=filtered_signals.shape[1], d=2.30e-3, bw=(low_freq, hi_freq), wlen=64,
+                                   fs=fs, nch=filtered_signals.shape[1], d=2.70e-3, bw=(low_freq, hi_freq), show=verbose,
                                    )
         theta_bar = theta[np.argmax(p)]
 

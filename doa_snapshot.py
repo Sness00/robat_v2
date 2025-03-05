@@ -63,7 +63,7 @@ if __name__ == "__main__":
     elif METHOD == 'music':
         spatial_filter = music
     
-    processed_samples = 1024
+    processed_samples = 220
     discarded_samples = 480
     dur = 3e-3
     hi_freq = 60e3
@@ -165,7 +165,7 @@ if __name__ == "__main__":
 
         theta, p = spatial_filter(
             windower(filtered_signals[furthest_peak+discarded_samples:furthest_peak+discarded_samples+processed_samples]),
-                                   fs=fs, nch=filtered_signals.shape[1], d=2.68e-3, bw=(low_freq, hi_freq), wlen=64
+                                   fs=fs, nch=filtered_signals.shape[1], d=2.30e-3, bw=(low_freq, hi_freq), wlen=64,
                                    )
         theta_bar = theta[np.argmax(p)]
 

@@ -119,7 +119,8 @@ if __name__ == "__main__":
             else:
                 valid_channels_audio = input_audio
                 filtered_signals = signal.correlate(valid_channels_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
-                envelopes = np.abs(signal.hilbert(filtered_signals, axis=0))
+                roll_filt_sigs = np.roll(filtered_signals, -len(sig)//2, axis=0)
+                envelopes = np.abs(signal.hilbert(roll_filt_sigs, axis=0))
 
                 mean_env = np.sum(envelopes, axis=1)/envelopes.shape[1]
                 peaks, _ = signal.find_peaks(mean_env, prominence=10)

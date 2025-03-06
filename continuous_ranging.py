@@ -50,7 +50,7 @@ def sonar(signals, output_sig, Fs=192e3):
     
 def sonar_1ch(signals, output_sig, Fs=192e3):
     distances = [0, 0]
-    filtered_signals = signal.correlate(signals, np.reshape(output_sig, (-1, 1)), 'same', method='fft')
+    filtered_signals = np.roll(signal.correlate(signals, np.reshape(output_sig, (-1, 1)), 'same', method='fft'), -len(output_sig)//2, axis=0)
     envelopes = np.abs(signal.hilbert(filtered_signals, axis=0))
     c = 0
     for i in np.arange(1, envelopes.shape[1], 2):
@@ -63,7 +63,7 @@ def sonar_1ch(signals, output_sig, Fs=192e3):
     return distances
 
 def mean_env_sonar(signals, output_sig, Fs=192e3):
-    filtered_signals = signal.correlate(signals, np.reshape(output_sig, (-1, 1)), 'same', method='fft')
+    filtered_signals = np.roll(signal.correlate(signals, np.reshape(output_sig, (-1, 1)), 'same', method='fft'), -len(output_sig)//2, axis=0)
     envelopes = np.abs(signal.hilbert(filtered_signals, axis=0))
     mean_env = np.mean(envelopes, axis=1)
 

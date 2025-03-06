@@ -30,15 +30,15 @@ def pow_two(vec):
 
 if __name__ == "__main__":
     
-    verbose = False
+    verbose = True
     fs = 192000
-    dur = 2e-3
+    dur = 3e-3
 
     t_tone = np.linspace(0, dur, int(fs*dur))
-    chirp = signal.chirp(t_tone, 60e3, t_tone[-1], 40e3)    
+    chirp = signal.chirp(t_tone, 80e3, t_tone[-1], 20e3)    
     sig = pow_two_pad_and_window(chirp, fs, show=False)
 
-    silence_dur = 15 # [ms]
+    silence_dur = 30 # [ms]
     silence_samples = int(silence_dur * fs/1000)
     silence_vec = np.zeros((silence_samples, ))
     full_sig = pow_two(np.concatenate((sig, silence_vec)))
@@ -93,7 +93,8 @@ if __name__ == "__main__":
 
     valid_channels_audio = input_audio
     filtered_signals = signal.correlate(valid_channels_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
-    envelopes = np.abs(signal.hilbert(filtered_signals, axis=0))
+    roll_filt_sigs = np.roll(filtered_signals, -len(sig)//2, axis=0)
+    envelopes = np.abs(signal.hilbert(roll_filt_sigs, axis=0))
 
     
     peaks = []
@@ -163,6 +164,8 @@ if __name__ == "__main__":
         for i in range(input_audio.shape[1]//2):
             for j in range(2):
                 ax[i, j].plot(t_plot1, input_audio[:, 2*i+j])
+                if enough:
+                    ax[i, j].vlines(peaks_array[2*i+j]/fs, -0.75, 0.75, linestyles='dashed', colors='r')
                 ax[i, j].set_title('Channel %d' % (2*i+j+1))
                 ax[i, j].minorticks_on()
                 ax[i, j].grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
@@ -170,16 +173,29 @@ if __name__ == "__main__":
         plt.tight_layout()
         plt.show()
 
-        t_plot2 = np.linspace(0, filtered_signals.shape[0]/fs, filtered_signals.shape[0])
+        t_plot2 = np.linspace(0, roll_filt_sigs.shape[0]/fs, roll_filt_sigs.shape[0])
         fig2, ax2 = plt.subplots(4, 2, sharex=True, sharey=True)
         plt.suptitle('Matched Filter Output')
-        for i in range(filtered_signals.shape[1]//2):
+        for i in range(roll_filt_sigs.shape[1]//2):
             for j in range(2):
-                ax2[i, j].plot(t_plot2, filtered_signals[:, 2*i+j])
+                ax2[i, j].plot(t_plot2, roll_filt_sigs[:, 2*i+j])
+                if enough:
+                    ax2[i, j].vlines(peaks_array[2*i+j]/fs, -20, 20, linestyles='dashed', colors='r')
                 ax2[i, j].set_title('Channel %d' % (2*i+j+1))
                 ax2[i, j].minorticks_on()
                 ax2[i, j].grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
                 ax2[i, j].grid()
         plt.tight_layout()
         plt.show()
-        
+
+        plt.figure()
+        plt.subplot(2, 1, 1)
+        plt.plot(t_plot1, input_audio[:, 0])
+        plt.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
+        plt.grid()
+        plt.subplot(2, 1, 2)
+        plt.plot(t_plot1, roll_filt_sigs[:, 0])
+        plt.grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
+        plt.grid()
+        plt.tight_layout()
+        plt.show()        

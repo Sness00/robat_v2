@@ -12,6 +12,7 @@ import soundfile as sf
 from thymiodirect import Thymio, Connection
 from broadcast_pcmd3180 import activate_mics
 from das_v2 import das_filter
+from music_v2 import music
 from sonar import sonar
 
 def get_soundcard_iostream(device_list):
@@ -58,14 +59,22 @@ if __name__ == "__main__":
     min_distance = 10e-2
     discarded_samples = int(np.floor((min_distance*2)/C_AIR*fs))
 
-    dur = 2e-3
+    method = 'music'
+    if method == 'das':
+        spatial_filter = das_filter
+        doa_thresh = -55
+    elif method == 'music':
+        spatial_filter = music
+        doa_thresh = -12
+    dur = 3e-3
     hi_freq = 55e3
     low_freq = 20e3
+    delta_freq = 7500
     t_tone = np.linspace(0, dur, int(fs*dur))
     chirp = signal.chirp(t_tone, hi_freq, t_tone[-1], low_freq)
     sig = pow_two_pad_and_window(chirp, show=False)
 
-    silence_dur = 18 # [ms]
+    silence_dur = 20 # [ms]
     silence_samples = int(silence_dur * fs/1000)
     silence_vec = np.zeros((silence_samples, ))
     full_sig = pow_two(np.concatenate((sig, silence_vec)))
@@ -98,8 +107,8 @@ if __name__ == "__main__":
             lateral_threshold = 1000
             ground_threshold = 10000
             air_threshold = 50
-            output_threshold = -40
-            distance_threshold = 30
+            output_threshold = -48 # [dB]
+            distance_threshold = 30 # [cm]
 
             th = Thymio(serial_port=port,
             on_connect=lambda node_id: print(f'\nThymio {node_id} is connected'))
@@ -163,14 +172,13 @@ if __name__ == "__main__":
                 #     filename = os.path.join(rec_dir, now.strftime('%Y%m%d_%H-%M-%S-%f') + '.wav')
                 #     sf.write(filename, input_audio, int(fs))
 
-                db_rms = 20*np.log10(np.mean(np.std(input_audio, axis=0))) # Battery is dead or not connected
-                
-                if db_rms > output_threshold:
+                dB_rms = 20*np.log10(np.mean(np.std(input_audio, axis=0))) # Battery is dead or not connected
+                if dB_rms > output_threshold:
 
                     filtered_signals = signal.correlate(input_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
                     roll_filt_sigs = np.roll(filtered_signals, -len(sig)//2, axis=0)
 
-                    distance = sonar(roll_filt_sigs, discarded_samples, fs)
+                    distance, direct_path = sonar(roll_filt_sigs, discarded_samples, fs)
                     distance = distance*100 # [m] to [cm]
 
                     if distance < distance_threshold and distance > 0:
@@ -178,40 +186,49 @@ if __name__ == "__main__":
                         robot['leds.bottom.left'] = [0, 255, 0]
                         robot['leds.bottom.right'] = [0, 255, 0]
 
-                        direction = random.choice(['l', 'r'])
-                        if direction == 'l':
-                            robot['motor.left.target'] = -rot_speed
-                            robot['motor.right.target'] = rot_speed
-                        else:
-                            robot['motor.left.target'] = rot_speed
-                            robot['motor.right.target'] = -rot_speed
-                        time.sleep(1)
-
-
-                        # theta2, p_das2 = das_filter(windower(filt_sigs[direct_path+96:direct_path+96+336]), fs=fs, nch=filt_sigs.shape[1], d=2.70e-3, bw=(low_freq, hi_freq))
-                        # if max(p_das2) > 0.005:
-                        #     robot['leds.bottom.left'] = [0, 255, 0]
-                        #     robot['leds.bottom.right'] = [0, 255, 0]
-                        #     doa_index = np.argmax(p_das2)
-                        #     theta_hat = theta2[doa_index]
-                        #     print('\nEstimated DoA: %.2f [deg]\n' % theta_hat)
-                        #     if theta_hat > 0:
-                        #         robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 255, 255]
-                        #     elif theta_hat < 0:
-                        #         robot['leds.circle'] = [0, 255, 255, 0, 0, 0, 0, 0]
-                        #     else:
-                        #         robot['leds.circle'] = [255, 0, 0, 0, 0, 0, 0, 0]
-                        #     current_time = time.time()
-                        #     while(time.time() - current_time) < 1:
-                        #         if theta_hat <= 0:
-                        #             robot['motor.left.target'] = -rot_speed
-                        #             robot['motor.right.target'] = rot_speed
-                        #         else:
-                        #             robot['motor.left.target'] = rot_speed
-                        #             robot['motor.right.target'] = -rot_speed
-                        #     robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 0, 0]
+                        # direction = random.choice(['l', 'r'])
+                        # if direction == 'l':
+                        #     robot['motor.left.target'] = -rot_speed
+                        #     robot['motor.right.target'] = rot_speed
                         # else:
-                        #     print('No DoA detected')
+                        #     robot['motor.left.target'] = rot_speed
+                        #     robot['motor.right.target'] = -rot_speed
+                        # time.sleep(1)
+
+
+                        theta, p = spatial_filter(
+                                                    windower(roll_filt_sigs[direct_path + 40:direct_path + 40 + 380]), 
+                                                    fs=fs, nch=roll_filt_sigs.shape[1], d=2.70e-3, 
+                                                    bw=(low_freq + delta_freq, hi_freq - delta_freq)
+                                                )
+                        p_dB = 20*np.log10(p)
+                        if max(p_dB) > doa_thresh:
+                            robot['leds.bottom.left'] = [0, 255, 0]
+                            robot['leds.bottom.right'] = [0, 255, 0]
+                            doa_index = np.argmax(p_dB)
+                            theta_hat = theta[doa_index]
+                            print('\nEstimated DoA: %.2f [deg]' % theta_hat)
+                            if theta_hat > 0:
+                                robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 255, 255]
+                                direction = 'r'
+                            elif theta_hat < 0:
+                                robot['leds.circle'] = [0, 255, 255, 0, 0, 0, 0, 0]
+                                direction = 'l'
+                            else:
+                                robot['leds.circle'] = [255, 0, 0, 0, 0, 0, 0, 0]
+                                direction = random.choice(['l', 'r'])
+
+                            if direction == 'l':
+                                robot['motor.left.target'] = -rot_speed
+                                robot['motor.right.target'] = rot_speed
+                            else:
+                                robot['motor.left.target'] = rot_speed
+                                robot['motor.right.target'] = -rot_speed
+                            time.sleep(1)
+
+                            robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 0, 0]
+                        else:
+                            print('No DoA detected')
                         
                         robot['leds.bottom.left'] = [0, 0, 0]
                         robot['leds.bottom.right'] = [0, 0, 0]
@@ -257,5 +274,18 @@ if __name__ == "__main__":
             finally:
                 print('Fin')
 
+    except IndexError:
+        t_plot = np.linspace(0, input_audio.shape[0]/fs, input_audio.shape[0])
+        fig, ax = plt.subplots(4, 2, sharex=True, sharey=True)
+        plt.suptitle('Recorded Audio')
+        for i in range(input_audio.shape[1]//2):
+            for j in range(2):
+                ax[i, j].plot(t_plot, input_audio[:, 2*i+j])
+                ax[i, j].set_title('Channel %d' % (2*i+j+1))
+                ax[i, j].minorticks_on()
+                ax[i, j].grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
+                ax[i, j].grid()
+        plt.tight_layout()
+        plt.show()
     except Exception:
         print(traceback.format_exc())

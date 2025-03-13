@@ -36,7 +36,7 @@ if __name__ == "__main__":
     min_distance = 10e-2
     discarded_samples = int(np.floor((min_distance*2)/C_AIR*fs))
 
-    verbose = False
+    verbose = True
     
     dur = 2e-3
 
@@ -102,12 +102,13 @@ if __name__ == "__main__":
 
         peaks = []
         enough = True
-        for i in np.arange(envelopes.shape[1]) and enough:
+        for i in np.arange(envelopes.shape[1]):
             idxs, _ = signal.find_peaks(envelopes[emission_peak + discarded_samples:, i], prominence=6)
             if idxs.any():
                 peaks.append(idxs[0] + emission_peak + discarded_samples)
             else:
                 enough = False
+                break
                 
         if not enough:
             print('No peaks detected')

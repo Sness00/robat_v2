@@ -65,13 +65,13 @@ if __name__ == "__main__":
         spatial_filter = music
     
 
-    field_range = 50e-2
-    discarded_samples = int(np.floor((field_range*2)/C_AIR*fs))
+    field_range = 30e-2
+    discarded_samples = int(np.floor((field_range*2)/C_AIR*fs)) - 60
     print(discarded_samples)
     processed_samples = 220
     # discarded_samples = 480
     dur = 3e-3
-    hi_freq = 80e3
+    hi_freq = 60e3
     low_freq = 20e3
 
     t_tone = np.linspace(0, dur, int(fs*dur))
@@ -143,6 +143,7 @@ if __name__ == "__main__":
             for i in range(envelopes.shape[1]//2):
                 for j in range(2):
                     ax[i, j].plot(envelopes[:, 2*i+j])
+                    ax[i, j].vlines(np.array([furthest_peak, furthest_peak+discarded_samples, furthest_peak+discarded_samples+processed_samples]), 0, 20, colors='r', linestyles='dashed')
                     ax[i, j].set_title('Channel %d' % (2*i+j+1))
                     ax[i, j].minorticks_on()
                     ax[i, j].grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
@@ -231,8 +232,8 @@ if __name__ == "__main__":
             # plt.show()
 
         theta, p = spatial_filter(
-            windower(filtered_signals[furthest_peak+discarded_samples:furthest_peak+discarded_samples+processed_samples]),
-                                    fs=fs, nch=filtered_signals.shape[1], d=2.70e-3, bw=(low_freq, hi_freq), show=False, wlen=128
+            windower(roll_filt_sigs[furthest_peak+discarded_samples:furthest_peak+discarded_samples+processed_samples]),
+                                    fs=fs, nch=roll_filt_sigs.shape[1], d=2.70e-3, bw=(low_freq + 5000, hi_freq - 5000), show=False, wlen=128
                                     )
         theta_bar = theta[np.argmax(p)]
 

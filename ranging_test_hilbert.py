@@ -102,8 +102,8 @@ if __name__ == "__main__":
 
         peaks = []
         enough = True
-        for i in np.arange(envelopes.shape[1]):
-            idxs, _ = signal.find_peaks(envelopes[emission_peak + discarded_samples:, i], prominence=2)
+        for i in np.arange(envelopes.shape[1]) and enough:
+            idxs, _ = signal.find_peaks(envelopes[emission_peak + discarded_samples:, i], prominence=6)
             if idxs.any():
                 peaks.append(idxs[0] + emission_peak + discarded_samples)
             else:

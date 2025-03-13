@@ -54,6 +54,7 @@ if __name__ == "__main__":
     verbose = args.verbose
 
     fs = 192000
+    C_AIR = 343
     nch = 8
 
     if METHOD == 'das':
@@ -65,12 +66,12 @@ if __name__ == "__main__":
     
 
     field_range = 50e-2
-    discarded_samples = int(np.floor((field_range*2)/343*fs))
+    discarded_samples = int(np.floor((field_range*2)/C_AIR*fs))
     print(discarded_samples)
     processed_samples = 220
     # discarded_samples = 480
     dur = 3e-3
-    hi_freq = 60e3
+    hi_freq = 80e3
     low_freq = 20e3
 
     t_tone = np.linspace(0, dur, int(fs*dur))
@@ -131,14 +132,23 @@ if __name__ == "__main__":
         envelopes = np.abs(signal.hilbert(roll_filt_sigs, axis=0))
 
         mean_env = np.sum(envelopes, axis=1)/envelopes.shape[1]
-        plt.figure()
-        plt.plot(mean_env)
-        plt.show()
         peaks, _ = signal.find_peaks(mean_env, prominence=1, distance=30)
 
         furthest_peak = peaks[0]
 
         if verbose:
+
+            fig, ax = plt.subplots(4, 2, sharex=True, sharey=True)
+            plt.suptitle('Channel Envelopes')
+            for i in range(envelopes.shape[1]//2):
+                for j in range(2):
+                    ax[i, j].plot(envelopes[:, 2*i+j])
+                    ax[i, j].set_title('Channel %d' % (2*i+j+1))
+                    ax[i, j].minorticks_on()
+                    ax[i, j].grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
+                    ax[i, j].grid()
+            plt.tight_layout()
+            plt.show()
             # fig = plt.figure()
             # subfigs = fig.subfigures(nch//2, 2)
             # i = 0

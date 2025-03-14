@@ -59,7 +59,7 @@ def music(y, fs, nch, d, bw, theta=np.linspace(-90, 90, 73), c=343, wlen=64, ns=
       plt.figure()
       plt.polar(np.deg2rad(theta), 20*np.log10(np.abs(p_i)))
       plt.xlim((-np.pi/2, np.pi/2))
-      plt.ylim((-22, 0))
+      plt.ylim((-22, 20))
       plt.title(str(f_c))
       plt.show()
   mag_p = np.abs(p)/len(bands)

@@ -1,3 +1,5 @@
+# %%
+
 import os
 import argparse
 import time
@@ -41,22 +43,22 @@ def windower(a):
         window = np.reshape(window, (-1, 1))
     windowed_a = a * window
     return windowed_a
-
+# %%
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Provide method and verbose option"
     )
-    parser.add_argument("--method", required=False, type=str, default='das')
-    parser.add_argument("--verbose", required=False, type=int, default=0)
-    args = parser.parse_args()
+    # parser.add_argument("--method", required=True, type=str)
+    # parser.add_argument("--verbose", required=False, type=int, default=0)
+    # args = parser.parse_args()
 
-    METHOD = args.method
-    verbose = args.verbose
+    # METHOD = args.method
+    # verbose = args.verbose
 
     fs = 192000
     C_AIR = 343
     nch = 8
-    METHOD = 'music'
+    METHOD = 'das'
     verbose = False
     if METHOD == 'das':
         spatial_filter = das_filter
@@ -107,7 +109,7 @@ if __name__ == "__main__":
     
     # Little pause to let the soundcard settle
     time.sleep(0.5)
-
+# %%
     stream = sd.Stream(samplerate=fs,
                         blocksize=0, 
                         device=soundcard, 

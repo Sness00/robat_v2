@@ -1,14 +1,14 @@
-import os
+# import os
 import traceback
 import time
-from datetime import datetime
+# from datetime import datetime
 import queue
 import random
 import numpy as np
 import scipy.signal as signal
 import matplotlib.pyplot as plt
 import sounddevice as sd
-import soundfile as sf
+# import soundfile as sf
 from thymiodirect import Thymio, Connection
 from broadcast_pcmd3180 import activate_mics
 from das_v2 import das_filter
@@ -21,6 +21,7 @@ def get_soundcard_iostream(device_list):
         asio_in_name = 'MCHStreamer' in dev_name
         if asio_in_name:
             return (i, i)
+    raise ValueError('No soundcard found')
 
 def pow_two_pad_and_window(vec, show=False):
     window = signal.windows.tukey(len(vec), alpha=0.3)
@@ -59,7 +60,7 @@ if __name__ == "__main__":
     min_distance = 10e-2
     discarded_samples = int(np.floor((min_distance*2)/C_AIR*fs))
 
-    method = 'music'
+    method = 'das'
     if method == 'das':
         spatial_filter = das_filter
         doa_thresh = -55
@@ -102,9 +103,9 @@ if __name__ == "__main__":
         # real robot
         port = Connection.serial_default_port()
         try:
-            speed = 300
+            speed = 0
             rot_speed = 150
-            lateral_threshold = 1000
+            lateral_threshold = 1400
             ground_threshold = 10000
             air_threshold = 50
             output_threshold = -48 # [dB]
@@ -149,7 +150,8 @@ if __name__ == "__main__":
                     robot['motor.right.target'] = speed
                     robot['leds.bottom.left'] = [0, 0, 0]
                     robot['leds.bottom.right'] = [0, 0, 0]
-                
+
+                all_input_audio = []
                 stream = sd.Stream(samplerate=fs,
                         blocksize=0,
                         device=device,
@@ -159,12 +161,15 @@ if __name__ == "__main__":
                 
                 with stream:
                     while stream.active:
+                        # all_input_audio.append(audio_in_data.get())
+                        # print(stream.active)
                         pass
-        
+                print('Stream ended')
                 current_frame = 0
-                all_input_audio = []
+                
                 while not audio_in_data.empty():
                     all_input_audio.append(audio_in_data.get())
+
                 input_audio = np.concatenate(all_input_audio)
 
                 # if save_recordings:
@@ -173,6 +178,7 @@ if __name__ == "__main__":
                 #     sf.write(filename, input_audio, int(fs))
 
                 dB_rms = 20*np.log10(np.mean(np.std(input_audio, axis=0))) # Battery is dead or not connected
+                
                 if dB_rms > output_threshold:
 
                     filtered_signals = signal.correlate(input_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
@@ -224,7 +230,8 @@ if __name__ == "__main__":
                             else:
                                 robot['motor.left.target'] = rot_speed
                                 robot['motor.right.target'] = -rot_speed
-                            time.sleep(1)
+
+                            time.sleep(0.75)
 
                             robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 0, 0]
                         else:

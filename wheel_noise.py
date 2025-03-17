@@ -17,6 +17,7 @@ def get_soundcard_instream(device_list):
         asio_in_name = 'MCHStreamer' in dev_name
         if asio_in_name:
             return i
+    raise ValueError('No soundcard found')
         
 if __name__ == '__main__':
 

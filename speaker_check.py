@@ -10,6 +10,7 @@ def get_soundcard_outstream(device_list):
         asio_in_name = 'MCHStreamer' in dev_name
         if asio_in_name:
             return i
+    raise ValueError('No soundcard found')
 
 
 def pow_two_pad_and_window(vec, fs, show=False):
@@ -27,8 +28,8 @@ def pow_two_pad_and_window(vec, fs, show=False):
 if __name__ == '__main__':
     fs = 192000
     
-    dur = 5 # s
-    t = np.linspace(0, dur, dur*fs)
+    dur = 0.5 # s
+    t = np.linspace(0, dur, int(dur*fs))
     chirp = signal.chirp(t, 15e3, t[-1], 2.5e3)
 
     sig = pow_two_pad_and_window(chirp, fs, show=False)

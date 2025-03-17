@@ -10,6 +10,7 @@ def get_soundcard_outstream(device_list):
         asio_in_name = 'MCHStreamer' in dev_name
         if asio_in_name:
             return i
+    raise ValueError('No soundcard found')
 
 def pow_two_pad_and_window(vec, show = True):
     window = signal.windows.tukey(len(vec), alpha=0.2)

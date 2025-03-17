@@ -46,7 +46,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Provide method and verbose option"
     )
-    parser.add_argument("--method", required=True, type=str)
+    parser.add_argument("--method", required=False, type=str, default='das')
     parser.add_argument("--verbose", required=False, type=int, default=0)
     args = parser.parse_args()
 
@@ -56,7 +56,8 @@ if __name__ == "__main__":
     fs = 192000
     C_AIR = 343
     nch = 8
-
+    METHOD = 'music'
+    verbose = False
     if METHOD == 'das':
         spatial_filter = das_filter
     elif METHOD == 'capon':
@@ -65,7 +66,7 @@ if __name__ == "__main__":
         spatial_filter = music
     
 
-    field_range = 30e-2
+    field_range = 50e-2
     discarded_samples = int(np.floor((field_range*2)/C_AIR*fs)) - 60
     print(discarded_samples)
     processed_samples = 220
@@ -233,7 +234,7 @@ if __name__ == "__main__":
 
         theta, p = spatial_filter(
             windower(roll_filt_sigs[furthest_peak+discarded_samples:furthest_peak+discarded_samples+processed_samples]),
-                                    fs=fs, nch=roll_filt_sigs.shape[1], d=2.70e-3, bw=(low_freq + 5000, hi_freq - 5000), show=False, wlen=128
+                                    fs=fs, nch=roll_filt_sigs.shape[1], d=2.70e-3, bw=(low_freq + 5000, hi_freq - 5000), show=True, wlen=128
                                     )
         theta_bar = theta[np.argmax(p)]
 

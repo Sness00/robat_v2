@@ -25,9 +25,9 @@ chirp = signal.chirp(t_tone, hi_freq, t_tone[-1], low_freq)
 
 sig = pow_two_pad_and_window(chirp, fs)
 
-delayed_sig = np.roll(sig, 150)
+delayed_sig = np.roll(sig, 200)
 
-autocorr = signal.correlate(sig, delayed_sig, 'full', method='fft')
+autocorr = signal.correlate(delayed_sig, sig, 'same', method='fft')
 
 plt.figure()
 plt.subplot(3, 1, 1)
@@ -35,5 +35,5 @@ plt.plot(sig)
 plt.subplot(3, 1, 2)
 plt.plot(delayed_sig)
 plt.subplot(3, 1, 3)
-plt.plot(autocorr)
+plt.plot(np.fft.fftshift(autocorr))
 plt.show()

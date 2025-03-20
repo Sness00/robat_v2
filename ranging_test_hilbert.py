@@ -37,7 +37,7 @@ if __name__ == "__main__":
     min_distance = 10e-2
     discarded_samples = int(np.floor((min_distance*2)/C_AIR*fs))
 
-    verbose = True
+    verbose = False
     
     dur = 2e-3
 

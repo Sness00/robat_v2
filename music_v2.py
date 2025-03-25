@@ -41,6 +41,8 @@ def music(y, fs, nch, d, bw, theta=np.linspace(-90, 90, 73), c=343, wlen=64, ns=
   p = np.zeros_like(theta, dtype=complex)
   p_i = np.zeros((len(theta), 1), dtype=complex)
   
+  if show:
+    plt.figure()
   for f_c in bands:
     w_s = (2*np.pi*f_c*d*np.sin(np.deg2rad(theta))/c)        
     a = np.exp(np.outer(np.linspace(0, nch-1, nch), -1j*w_s))
@@ -52,16 +54,17 @@ def music(y, fs, nch, d, bw, theta=np.linspace(-90, 90, 73), c=343, wlen=64, ns=
     V_sorted = V[indices]
     V_n = V_sorted[:, ns:]
     V_n_H = V_n.T.conj()
-    for i, _ in enumerate(theta):
+
+    for i in range(len(theta)):
       p_i[i] = 1/(a_H[i, :] @ V_n @ V_n_H @ a[:, i]) 
       p[i] += p_i[i]
+
     if show:
-      plt.figure()
       plt.polar(np.deg2rad(theta), 20*np.log10(np.abs(p_i)))
       plt.xlim((-np.pi/2, np.pi/2))
-      plt.ylim((-22, 20))
-      plt.title(str(f_c))
-      plt.show()
+      plt.title('Pseudospectra')
+  if show:
+    plt.show()
   mag_p = np.abs(p)/len(bands)
       
   return theta, mag_p

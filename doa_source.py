@@ -37,7 +37,7 @@ if __name__ == "__main__":
 
     first_sample = int(fs*0.1)
     last_sample = first_sample + int(3e-3*fs)
-    sig, _ = sf.read('playback_sweeps_fast_rising.wav', start=first_sample, stop=last_sample)
+    sig, _ = sf.read('15k-95k.wav', start=first_sample, stop=last_sample)
     
     field_range = 50e-2
     discarded_samples = int(np.floor((field_range*2)/C_AIR*fs)) - 60
@@ -60,7 +60,7 @@ if __name__ == "__main__":
 
     try:        
         now = datetime.now()
-        filename = os.path.join(rec_dir, now.strftime('%Y%m%d_%H-%M-%S-%f') + '.wav')
+        filename = os.path.join(rec_dir, now.strftime('%Y%m%d_%H-%M-%S') + '.wav')
         with sf.SoundFile(filename, mode='x', samplerate=int(fs),
                             channels=8) as file:
             stream = sd.InputStream(samplerate=fs,
@@ -79,14 +79,71 @@ if __name__ == "__main__":
         print('Stream closed')
 
         input_audio, _ = sf.read(filename)
+
+        fig, ax = plt.subplots(4, 2, sharex=True, sharey=True)
+        plt.suptitle('Recorded Audio')
+        for i in range(input_audio.shape[1]//2):
+            for j in range(2):
+                ax[i, j].plot(input_audio[:, 2*i+j])
+                ax[i, j].set_title('Channel %d' % (2*i+j+1))
+                ax[i, j].minorticks_on()
+                ax[i, j].grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
+                ax[i, j].grid()
+        plt.tight_layout()
+        plt.show()
+        
+        filtered_signals = signal.correlate(input_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
+        roll_filt_sigs = np.roll(filtered_signals, -len(sig)//2, axis=0)
+        envelopes = np.abs(signal.hilbert(roll_filt_sigs, axis=0))
+
+        # fig, ax = plt.subplots(4, 2, sharex=True, sharey=True)
+        # plt.suptitle('Envelopes')
+        # for i in range(envelopes.shape[1]//2):
+        #     for j in range(2):
+        #         ax[i, j].plot(envelopes[:, 2*i+j])
+        #         ax[i, j].set_title('Channel %d' % (2*i+j+1))
+        #         ax[i, j].minorticks_on()
+        #         ax[i, j].grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
+        #         ax[i, j].grid()
+        # plt.tight_layout()
+        # plt.show()
+
+        peaks = []
+        for i in np.arange(nch):
+            idxs, _ = signal.find_peaks(envelopes[:, i], prominence=10)
+            peaks.append(idxs[0])
+        
+        peaks_array = np.array(peaks)
+        
+        earliest_peak = np.min(peaks_array)
+
+        # analyzed_signals = input_audio[earliest_peak - 50:earliest_peak + 626]
+        new_idxs = np.array([1, 0, 3, 2, 5, 4, 7, 6])
+        analyzed_signals = roll_filt_sigs[earliest_peak - 50:earliest_peak + 50, new_idxs]
+        peaks_array = peaks_array[new_idxs]
+        print(peaks_array)
+        fig, ax = plt.subplots(4, 2, sharex=True, sharey=True)
+        plt.suptitle('Analyzed Signals')
+        for i in range(analyzed_signals.shape[1]//2):
+            for j in range(2):
+                ax[i, j].plot(analyzed_signals[:, 2*i+j])
+                ax[i, j].axvline(peaks_array[2*i+j] - earliest_peak + 50, 0, 200, color='r', linestyle='--')
+                ax[i, j].axvline(50, 0, 200, color='g', linestyle='-.')
+                ax[i, j].set_title('Channel %d' % (2*i+j+1))
+                ax[i, j].minorticks_on()
+                ax[i, j].grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
+                ax[i, j].grid()
+        plt.tight_layout()
+        plt.show()
+
         theta, p = das_filter(  
-            windower(input_audio),
+            analyzed_signals,
             fs=fs,
             nch=input_audio.shape[1],
             d=2.70e-3,
             bw=(low_freq, hi_freq),
             show=True,
-            wlen=128
+            wlen=64
             )
         
         theta_bar = theta[np.argmax(p)]

@@ -118,7 +118,8 @@ if __name__ == "__main__":
         if db_rms < -50:
             print('Low output level. Replace amp battery')
         else:
-            valid_channels_audio = input_audio
+            new_idxs = np.array([1, 0, 3, 2, 5, 4, 7, 6])
+            valid_channels_audio = input_audio[:, new_idxs]
             filtered_signals = signal.correlate(valid_channels_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
             roll_filt_sigs = np.roll(filtered_signals, -len(sig)//2, axis=0)
             envelopes = np.abs(signal.hilbert(roll_filt_sigs, axis=0))

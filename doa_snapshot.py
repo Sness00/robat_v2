@@ -50,7 +50,7 @@ if __name__ == "__main__":
     C_AIR = 343
     nch = 8
 
-    METHOD = 'das'    
+    METHOD = 'music'    
     if METHOD == 'das':
         spatial_filter = das_filter
     elif METHOD == 'capon':
@@ -59,7 +59,7 @@ if __name__ == "__main__":
         spatial_filter = music
     
     verbose = False
-    field_range = 30e-2
+    field_range = 50e-2
     discarded_samples = int(np.floor((field_range*2)/C_AIR*fs)) - 60
     print(discarded_samples)
     processed_samples = 512
@@ -121,7 +121,8 @@ if __name__ == "__main__":
     if db_rms < -50:
         print('Low output level. Replace amp battery')
     else:
-        valid_channels_audio = input_audio
+        new_idxs = np.array([1, 0, 3, 2, 5, 4, 7, 6])
+        valid_channels_audio = input_audio[:, new_idxs]
         filtered_signals = signal.correlate(valid_channels_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
         roll_filt_sigs = np.roll(filtered_signals, -len(sig)//2, axis=0)
         envelopes = np.abs(signal.hilbert(roll_filt_sigs, axis=0))
@@ -160,7 +161,12 @@ if __name__ == "__main__":
 
         theta, p = spatial_filter(
             windower(roll_filt_sigs[furthest_peak+discarded_samples:furthest_peak+discarded_samples+processed_samples]),
-                                    fs=fs, nch=roll_filt_sigs.shape[1], d=2.70e-3, bw=(low_freq, hi_freq), show=True, wlen=128
+                                    fs=fs, 
+                                    nch=roll_filt_sigs.shape[1], 
+                                    d=2.70e-3, 
+                                    bw=(low_freq, hi_freq), 
+                                    show=True, 
+                                    wlen=128
                                     )
         
         theta_bar = theta[np.argmax(p)]
@@ -177,7 +183,7 @@ if __name__ == "__main__":
         # Shift axes by -90 degrees
         ax2.set_theta_offset(np.pi/2)
         # Limit theta between -90 and 90 degrees
-        ax2.set_theta_direction(1)
+        # ax2.set_theta_direction(1)
         ax2.set_xlim(-np.pi/2, np.pi/2)
         ax2.set_xticks(np.deg2rad([-90, -75, -60, -45, -30, -15, 0, 15, 30, 45, 60, 75, 90]))
         # ax2.set_yticks([-80, -60, -40])

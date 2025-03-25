@@ -91,8 +91,8 @@ if __name__ == "__main__":
     input_audio = np.concatenate(all_input_audio)
     
     if (20*np.log10(np.mean(np.std(input_audio, axis=0)))) > -55:
-
-        valid_channels_audio = input_audio
+        new_idxs = np.array([1, 0, 3, 2, 5, 4, 7, 6])
+        valid_channels_audio = input_audio[:, new_idxs]
         filtered_signals = signal.correlate(valid_channels_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
         roll_filt_sigs = np.roll(filtered_signals, -len(sig)//2, axis=0)
         envelopes = np.abs(signal.hilbert(roll_filt_sigs, axis=0))

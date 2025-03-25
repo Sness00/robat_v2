@@ -17,6 +17,7 @@ def get_soundcard_iostream(device_list):
         asio_in_name = 'MCHStreamer' in dev_name
         if asio_in_name:
             return (i, i)
+    raise ValueError('No soundcard found')
         
 def pow_two_pad_and_window(vec, fs, show=False):
     window = signal.windows.tukey(len(vec), alpha=0.2)
@@ -95,65 +96,61 @@ if __name__ == "__main__":
     
     # Little pause to let the soundcard settle
     time.sleep(0.5)
-    try:
-        def update(frame):
-            stream = sd.Stream(samplerate=fs,
-                        blocksize=0, 
-                        device=soundcard, 
-                        channels=(8, 2),
-                        callback=callback,
-                        latency='low')
-            with stream:
-                while stream.active:
-                    pass
-            global current_frame
-            current_frame = 0
-            # Transfer input data from queue to an array
-            all_input_audio = []
-            while not audio_in_data.empty():
-                all_input_audio.append(audio_in_data.get())            
-            input_audio = np.concatenate(all_input_audio)
-            db_rms = 20*np.log10(np.std(input_audio))
-            if db_rms < -50:
-                print('Low output level. Replace amp battery')
-            else:
-                valid_channels_audio = input_audio
-                filtered_signals = signal.correlate(valid_channels_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
-                roll_filt_sigs = np.roll(filtered_signals, -len(sig)//2, axis=0)
-                envelopes = np.abs(signal.hilbert(roll_filt_sigs, axis=0))
-
-                mean_env = np.sum(envelopes, axis=1)/envelopes.shape[1]
-                peaks, _ = signal.find_peaks(mean_env, prominence=10)
-
-                furthest_peak = peaks[0]
-
-                _, p = spatial_filter(
-                    windower(filtered_signals[furthest_peak+discarded_samples:furthest_peak+discarded_samples+processed_samples]),
-                     fs=fs, nch=filtered_signals.shape[1], d=2.70e-3, bw=(low_freq, hi_freq)
-                     )
-                p_dB = 20*np.log10(p)
-                
-                if max(p_dB) > 0:
-                    ax.set_ylim(1.1*min(p_dB), 1.1*max(p_dB))
-                else:
-                    ax.set_ylim(1.1*min(p_dB), 0.9*max(p_dB))
-                line.set_ydata(p_dB)
-
-                return line
-
-
-        fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
-        ax.set_title('DaS Filter Output')
-        # Shift axes by -90 degrees
-        ax.set_theta_offset(np.pi/2)
-        # Limit theta between -90 and 90 degrees
-        ax.set_xlim(-np.pi/2, np.pi/2)
-        # ax.set_ylim(-20, 40)        
-        ax.grid(True)
-        line, = ax.plot(np.linspace(-np.pi/2, np.pi/2, 73), 0*np.sin(np.linspace(-np.pi/2, np.pi/2, 73)))
-        ani = FuncAnimation(fig, update, interval=100, cache_frame_data=False)
-        plt.show()
-
-    except Exception as e:
-        print(e)
     
+    def update(frame):
+        stream = sd.Stream(samplerate=fs,
+                    blocksize=0, 
+                    device=soundcard, 
+                    channels=(8, 2),
+                    callback=callback,
+                    latency='low')
+        with stream:
+            while stream.active:
+                pass
+        global current_frame
+        current_frame = 0
+        # Transfer input data from queue to an array
+        all_input_audio = []
+        while not audio_in_data.empty():
+            all_input_audio.append(audio_in_data.get())            
+        input_audio = np.concatenate(all_input_audio)
+        db_rms = 20*np.log10(np.std(input_audio))
+        if db_rms < -50:
+            print('Low output level. Replace amp battery')
+        else:
+            valid_channels_audio = input_audio
+            filtered_signals = signal.correlate(valid_channels_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
+            roll_filt_sigs = np.roll(filtered_signals, -len(sig)//2, axis=0)
+            envelopes = np.abs(signal.hilbert(roll_filt_sigs, axis=0))
+
+            mean_env = np.sum(envelopes, axis=1)/envelopes.shape[1]
+            peaks, _ = signal.find_peaks(mean_env, prominence=10)
+
+            furthest_peak = peaks[0]
+
+            _, p = spatial_filter(
+                windower(filtered_signals[furthest_peak+discarded_samples:furthest_peak+discarded_samples+processed_samples]),
+                    fs=fs, nch=filtered_signals.shape[1], d=2.70e-3, bw=(low_freq, hi_freq)
+                    )
+            p_dB = 20*np.log10(p)
+            
+            if max(p_dB) > 0:
+                ax.set_ylim(1.1*min(p_dB), 1.1*max(p_dB))
+            else:
+                ax.set_ylim(1.1*min(p_dB), 0.9*max(p_dB))
+            line.set_ydata(p_dB)
+
+            return line
+
+
+    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
+    ax.set_title('DaS Filter Output')
+    # Shift axes by -90 degrees
+    ax.set_theta_offset(np.pi/2)
+    # Limit theta between -90 and 90 degrees
+    ax.set_xlim(-np.pi/2, np.pi/2)
+    # ax.set_ylim(-20, 40)        
+    ax.grid(True)
+    line, = ax.plot(np.linspace(-np.pi/2, np.pi/2, 73), 0*np.sin(np.linspace(-np.pi/2, np.pi/2, 73)))
+    ani = FuncAnimation(fig, update, interval=100, cache_frame_data=False)
+    plt.show()

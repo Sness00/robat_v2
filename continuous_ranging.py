@@ -63,12 +63,10 @@ if __name__ == "__main__":
     method = 'das'
     if method == 'das':
         spatial_filter = das_filter
-        doa_thresh = -55
     elif method == 'music':
         spatial_filter = music
-        doa_thresh = -12
     dur = 3e-3
-    hi_freq = 55e3
+    hi_freq = 60e3
     low_freq = 20e3
     delta_freq = 7500
     t_tone = np.linspace(0, dur, int(fs*dur))
@@ -103,9 +101,9 @@ if __name__ == "__main__":
         # real robot
         port = Connection.serial_default_port()
         try:
-            speed = 0
+            speed = 300
             rot_speed = 150
-            lateral_threshold = 1400
+            lateral_threshold = 100000
             ground_threshold = 10000
             air_threshold = 50
             output_threshold = -48 # [dB]
@@ -161,10 +159,7 @@ if __name__ == "__main__":
                 
                 with stream:
                     while stream.active:
-                        # all_input_audio.append(audio_in_data.get())
-                        # print(stream.active)
                         pass
-                print('Stream ended')
                 current_frame = 0
                 
                 while not audio_in_data.empty():
@@ -208,34 +203,32 @@ if __name__ == "__main__":
                                                     bw=(low_freq + delta_freq, hi_freq - delta_freq)
                                                 )
                         p_dB = 20*np.log10(p)
-                        if max(p_dB) > doa_thresh:
-                            robot['leds.bottom.left'] = [0, 255, 0]
-                            robot['leds.bottom.right'] = [0, 255, 0]
-                            doa_index = np.argmax(p_dB)
-                            theta_hat = theta[doa_index]
-                            print('\nEstimated DoA: %.2f [deg]' % theta_hat)
-                            if theta_hat > 0:
-                                robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 255, 255]
-                                direction = 'r'
-                            elif theta_hat < 0:
-                                robot['leds.circle'] = [0, 255, 255, 0, 0, 0, 0, 0]
-                                direction = 'l'
-                            else:
-                                robot['leds.circle'] = [255, 0, 0, 0, 0, 0, 0, 0]
-                                direction = random.choice(['l', 'r'])
-
-                            if direction == 'l':
-                                robot['motor.left.target'] = -rot_speed
-                                robot['motor.right.target'] = rot_speed
-                            else:
-                                robot['motor.left.target'] = rot_speed
-                                robot['motor.right.target'] = -rot_speed
-
-                            time.sleep(0.75)
-
-                            robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 0, 0]
+                        
+                        robot['leds.bottom.left'] = [0, 255, 0]
+                        robot['leds.bottom.right'] = [0, 255, 0]
+                        doa_index = np.argmax(p_dB)
+                        theta_hat = theta[doa_index]
+                        print('\nEstimated DoA: %.2f [deg]' % theta_hat)
+                        if theta_hat > 0:
+                            robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 255, 255]
+                            direction = 'r'
+                        elif theta_hat < 0:
+                            robot['leds.circle'] = [0, 255, 255, 0, 0, 0, 0, 0]
+                            direction = 'l'
                         else:
-                            print('No DoA detected')
+                            robot['leds.circle'] = [255, 0, 0, 0, 0, 0, 0, 0]
+                            direction = random.choice(['l', 'r'])
+
+                        if direction == 'l':
+                            robot['motor.left.target'] = -rot_speed
+                            robot['motor.right.target'] = rot_speed
+                        else:
+                            robot['motor.left.target'] = rot_speed
+                            robot['motor.right.target'] = -rot_speed
+
+                        time.sleep(0.75)
+
+                        robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 0, 0]
                         
                         robot['leds.bottom.left'] = [0, 0, 0]
                         robot['leds.bottom.right'] = [0, 0, 0]
@@ -275,6 +268,7 @@ if __name__ == "__main__":
                 robot['leds.bottom.left'] = 0
                 robot['leds.bottom.right'] = 0
                 robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 0, 0]
+                time.sleep(1)
                 th.disconnect()
             except Exception as e:
                 print('Exception encountered:', e)

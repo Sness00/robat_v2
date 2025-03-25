@@ -1,3 +1,4 @@
+
 import os
 import sounddevice as sd
 import soundfile as sf
@@ -16,6 +17,10 @@ def get_soundcard_instream(device_list):
     raise ValueError('No soundcard found')
 
 if __name__ == '__main__':
+
+    abspath = os.path.abspath(__file__)
+    dname = os.path.dirname(abspath)
+    os.chdir(dname)
     
     fs = 192e3
 
@@ -33,7 +38,7 @@ if __name__ == '__main__':
     activate_mics()
     try:        
         now = datetime.now()
-        filename = os.path.join(rec_dir, now.strftime('%Y%m%d_%H-%M-%S-%f') + '.wav')
+        filename = os.path.join(rec_dir, now.strftime('%Y%m%d_%H-%M-%S') + '.wav')
         with sf.SoundFile(filename, mode='x', samplerate=int(fs),
                             channels=8) as file:
             stream = sd.InputStream(samplerate=fs,

@@ -9,6 +9,8 @@ import sounddevice as sd
 import soundfile as sf
 from broadcast_pcmd3180 import activate_mics
 from das_v2 import das_filter
+from capon import capon_method
+from music_v2 import music
 
 def get_soundcard_instream(device_list):
     for i, each in enumerate(device_list):
@@ -31,6 +33,16 @@ if __name__ == "__main__":
     dname = os.path.dirname(abspath)
     os.chdir(dname)
 
+    verbose = False
+
+    METHOD = 'das'
+    if METHOD == 'das':
+        spatial_filter = das_filter
+    elif METHOD == 'capon':
+        spatial_filter = capon_method
+    elif METHOD == 'music':
+        spatial_filter = music
+    
     fs = 192000
     C_AIR = 343
     nch = 8
@@ -38,10 +50,6 @@ if __name__ == "__main__":
     first_sample = int(fs*0.1)
     last_sample = first_sample + int(3e-3*fs)
     sig, _ = sf.read('15k-60k.wav', start=first_sample, stop=last_sample)
-    
-    field_range = 50e-2
-    discarded_samples = int(np.floor((field_range*2)/C_AIR*fs)) - 60
-    processed_samples = 512
 
     hi_freq = 60e3
     low_freq = 15e3
@@ -79,18 +87,20 @@ if __name__ == "__main__":
         print('Stream closed')
 
         input_audio, _ = sf.read(filename)
-        t_plot = np.linspace(0, len(input_audio)/fs, len(input_audio))
-        fig, ax = plt.subplots(4, 2, sharex=True, sharey=True)
-        plt.suptitle('Recorded Audio')
-        for i in range(input_audio.shape[1]//2):
-            for j in range(2):
-                ax[i, j].plot(t_plot, input_audio[:, 2*i+j])
-                ax[i, j].set_title('Channel %d' % (2*i+j+1))
-                ax[i, j].minorticks_on()
-                ax[i, j].grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
-                ax[i, j].grid()
-        plt.tight_layout()
-        plt.show()
+
+        if verbose: 
+            t_plot = np.linspace(0, len(input_audio)/fs, len(input_audio))
+            fig, ax = plt.subplots(4, 2, sharex=True, sharey=True)
+            plt.suptitle('Recorded Audio')
+            for i in range(input_audio.shape[1]//2):
+                for j in range(2):
+                    ax[i, j].plot(t_plot, input_audio[:, 2*i+j])
+                    ax[i, j].set_title('Channel %d' % (2*i+j+1))
+                    ax[i, j].minorticks_on()
+                    ax[i, j].grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
+                    ax[i, j].grid()
+            plt.tight_layout()
+            plt.show()
         
         filtered_signals = signal.correlate(input_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
         roll_filt_sigs = np.roll(filtered_signals, -len(sig)//2, axis=0)
@@ -107,28 +117,29 @@ if __name__ == "__main__":
 
         analyzed_signals = roll_filt_sigs[earliest_peak - 50:earliest_peak + 50]
         print(peaks_array)
-        fig, ax = plt.subplots(4, 2, sharex=True, sharey=True)
-        plt.suptitle('Analyzed Signals')
-        for i in range(analyzed_signals.shape[1]//2):
-            for j in range(2):
-                ax[i, j].plot(analyzed_signals[:, 2*i+j])
-                ax[i, j].axvline(peaks_array[2*i+j] - earliest_peak + 50, 0, 200, color='r', linestyle='--')
-                ax[i, j].axvline(50, 0, 200, color='g', linestyle='-.')
-                ax[i, j].set_title('Channel %d' % (2*i+j+1))
-                ax[i, j].minorticks_on()
-                ax[i, j].grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
-                ax[i, j].grid()
-        plt.tight_layout()
-        plt.show()
+        if verbose:
+            fig, ax = plt.subplots(4, 2, sharex=True, sharey=True)
+            plt.suptitle('Analyzed Signals')
+            for i in range(analyzed_signals.shape[1]//2):
+                for j in range(2):
+                    ax[i, j].plot(analyzed_signals[:, 2*i+j])
+                    ax[i, j].axvline(peaks_array[2*i+j] - earliest_peak + 50, 0, 200, color='r', linestyle='--')
+                    ax[i, j].axvline(50, 0, 200, color='g', linestyle='-.')
+                    ax[i, j].set_title('Channel %d' % (2*i+j+1))
+                    ax[i, j].minorticks_on()
+                    ax[i, j].grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
+                    ax[i, j].grid()
+            plt.tight_layout()
+            plt.show()
 
-        theta, p = das_filter(  
+        theta, p = spatial_filter(  
             analyzed_signals,
             fs=fs,
             nch=input_audio.shape[1],
             d=2.70e-3,
             bw=(low_freq, hi_freq),
             show=True,
-            wlen=128
+            wlen=64
             )
         
         theta_bar = theta[np.argmax(p)]

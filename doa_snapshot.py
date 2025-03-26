@@ -1,4 +1,3 @@
-# %%
 import os
 import time
 import queue
@@ -43,14 +42,13 @@ def windower(a):
     windowed_a = a * window
     return windowed_a
 
-# %%
 if __name__ == "__main__":
 
     fs = 192000
     C_AIR = 343
     nch = 8
 
-    METHOD = 'das'    
+    METHOD = 'music'    
     if METHOD == 'das':
         spatial_filter = das_filter
     elif METHOD == 'capon':
@@ -118,9 +116,7 @@ if __name__ == "__main__":
     input_audio = np.concatenate(all_input_audio)
     db_rms = 20*np.log10(np.std(input_audio))
 
-    if db_rms < -50:
-        print('Low output level. Replace amp battery')
-    else:
+    if db_rms > -50:
         valid_channels_audio = input_audio
         filtered_signals = signal.correlate(valid_channels_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
         roll_filt_sigs = np.roll(filtered_signals, -len(sig)//2, axis=0)
@@ -159,7 +155,7 @@ if __name__ == "__main__":
             plt.show()
 
         theta, p = spatial_filter(
-            windower(roll_filt_sigs[furthest_peak+discarded_samples:furthest_peak+discarded_samples+processed_samples]),
+            roll_filt_sigs[furthest_peak+discarded_samples:furthest_peak+discarded_samples+processed_samples],
                                     fs=fs, 
                                     nch=roll_filt_sigs.shape[1], 
                                     d=2.70e-3, 
@@ -172,22 +168,14 @@ if __name__ == "__main__":
 
         print(f'DoA: {theta_bar} [deg]')
 
-#%%
         fig, ax2 = plt.subplots(subplot_kw={'projection': 'polar'})
 
         ax2.plot(np.deg2rad(theta), 20*np.log10(p), color='r')
         ax2.set_title('Spatial Energy Distribution')
-        ax2.set_xlabel('Angle [deg]')   
-        # ax2.set_ylabel('Magnitude [dB]')
-        # Shift axes by -90 degrees
         ax2.set_theta_offset(np.pi/2)
-        # Limit theta between -90 and 90 degrees
-        # ax2.set_theta_direction(1)
         ax2.set_xlim(-np.pi/2, np.pi/2)
-        ax2.set_xticks(np.deg2rad([-90, -75, -60, -45, -30, -15, 0, 15, 30, 45, 60, 75, 90]))
-        # ax2.set_yticks([-80, -60, -40])
-        # ax.set_ylim(-20, 40)        
+        ax2.set_xticks(np.deg2rad([-90, -75, -60, -45, -30, -15, 0, 15, 30, 45, 60, 75, 90]))    
         ax2.grid(True)
         plt.show()
-#%%
-        fig.savefig('das', transparent=True)
+    else:
+        print('Low input level. Dead battery?')

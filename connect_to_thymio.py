@@ -11,6 +11,7 @@ try:
     print(th.variables(robot_id))
     robot = th[robot_id]
     try:
+        time.sleep(1)
         th.disconnect()
     except Exception as e:
             print(e)

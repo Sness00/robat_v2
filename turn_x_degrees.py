@@ -6,7 +6,7 @@ def angle_to_time(angle, speed):
     A = 612.33
     B = -0.94
     t = A*speed**B    
-    return t * angle / 360
+    return t * abs(angle) / 360
 
 try:
     port = Connection.serial_default_port()
@@ -15,15 +15,17 @@ try:
     th.connect()
     robot_id = th.first_node()
     robot = th[robot_id]
-    speed = 321
+    speed = 200
 
-    angle = 360
+    angle = 0
     time_to_turn = angle_to_time(angle, speed)
-    robot['motor.left.target'] = speed
-    robot['motor.right.target'] = -speed
-    now = time.time()
-    while time.time() - now < time_to_turn:
-        pass
+    if angle >= 0:
+        robot['motor.left.target'] = -speed
+        robot['motor.right.target'] = speed
+    else:
+        robot['motor.left.target'] = speed
+        robot['motor.right.target'] = -speed
+    time.sleep(time_to_turn)
     robot['motor.left.target'] = 0
     robot['motor.right.target'] = 0
     time.sleep(1)

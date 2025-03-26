@@ -1,3 +1,6 @@
+# %% 
+# Libraries and functions
+
 # import os
 import traceback
 import time
@@ -50,7 +53,8 @@ def angle_to_time(angle, speed):
     B = -0.94
     t = A*speed**B    
     return t * abs(angle) / 360
-
+# %% 
+# Main
 if __name__ == "__main__":
 
     # save_recordings = True
@@ -73,7 +77,7 @@ if __name__ == "__main__":
         spatial_filter = music
     dur = 3e-3
     hi_freq = 60e3
-    low_freq = 20e3
+    low_freq = 15e3
     delta_freq = 0
     t_tone = np.linspace(0, dur, int(fs*dur))
     chirp = signal.chirp(t_tone, hi_freq, t_tone[-1], low_freq)
@@ -107,13 +111,13 @@ if __name__ == "__main__":
         # real robot
         port = Connection.serial_default_port()
         try:
-            speed = 300
-            rot_speed = 150
-            lateral_threshold = 100000
+            speed = 200
+            rot_speed = 200
+            lateral_threshold = 10000
             ground_threshold = 10000
             air_threshold = 50
             output_threshold = -48 # [dB]
-            distance_threshold = 30 # [cm]
+            distance_threshold = 20 # [cm]
 
             th = Thymio(serial_port=port,
             on_connect=lambda node_id: print(f'\nThymio {node_id} is connected'))
@@ -203,7 +207,7 @@ if __name__ == "__main__":
 
 
                         theta, p = spatial_filter(
-                                                    windower(roll_filt_sigs[direct_path + 40:direct_path + 40 + 380]), 
+                                                    roll_filt_sigs[direct_path + 40:direct_path + 40 + 380], 
                                                     fs=fs, nch=roll_filt_sigs.shape[1], d=2.70e-3, 
                                                     bw=(low_freq + delta_freq, hi_freq - delta_freq)
                                                 )
@@ -217,12 +221,15 @@ if __name__ == "__main__":
                         if theta_hat > 0:
                             robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 255, 255]
                             direction = 'r'
+                            t_rot = angle_to_time(theta_hat, rot_speed)
                         elif theta_hat < 0:
                             robot['leds.circle'] = [0, 255, 255, 0, 0, 0, 0, 0]
                             direction = 'l'
+                            t_rot = angle_to_time(theta_hat, rot_speed)
                         else:
                             robot['leds.circle'] = [255, 0, 0, 0, 0, 0, 0, 0]
                             direction = random.choice(['l', 'r'])
+                            t_rot = angle_to_time(180, rot_speed)
 
                         if direction == 'l':
                             robot['motor.left.target'] = -rot_speed
@@ -230,8 +237,8 @@ if __name__ == "__main__":
                         else:
                             robot['motor.left.target'] = rot_speed
                             robot['motor.right.target'] = -rot_speed
-
-                        time.sleep(0.75)
+                        
+                        time.sleep(t_rot)
 
                         robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 0, 0]
                         
@@ -273,7 +280,7 @@ if __name__ == "__main__":
                 robot['leds.bottom.left'] = 0
                 robot['leds.bottom.right'] = 0
                 robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 0, 0]
-                time.sleep(1)
+                time.sleep(2)
                 th.disconnect()
             except Exception as e:
                 print('Exception encountered:', e)

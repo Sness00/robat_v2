@@ -45,6 +45,12 @@ def windower(a):
     windowed_a = a * window
     return windowed_a
 
+def angle_to_time(angle, speed):
+    A = 612.33
+    B = -0.94
+    t = A*speed**B    
+    return t * abs(angle) / 360
+
 if __name__ == "__main__":
 
     # save_recordings = True
@@ -68,7 +74,7 @@ if __name__ == "__main__":
     dur = 3e-3
     hi_freq = 60e3
     low_freq = 20e3
-    delta_freq = 7500
+    delta_freq = 0
     t_tone = np.linspace(0, dur, int(fs*dur))
     chirp = signal.chirp(t_tone, hi_freq, t_tone[-1], low_freq)
     sig = pow_two_pad_and_window(chirp, show=False)

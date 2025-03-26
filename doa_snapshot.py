@@ -60,7 +60,7 @@ if __name__ == "__main__":
     field_range = 50e-2
     discarded_samples = int(np.floor((field_range*2)/C_AIR*fs)) - 60
     print(discarded_samples)
-    processed_samples = 512
+    processed_samples = 1024
     # discarded_samples = 480
     dur = 3e-3
     hi_freq = 60e3
@@ -165,12 +165,13 @@ if __name__ == "__main__":
                                     )
         
         theta_bar = theta[np.argmax(p)]
-
+        doas = theta[signal.find_peaks(p)[0]]
         print(f'DoA: {theta_bar} [deg]')
 
         fig, ax2 = plt.subplots(subplot_kw={'projection': 'polar'})
 
         ax2.plot(np.deg2rad(theta), 20*np.log10(p), color='r')
+        ax2.vlines(np.deg2rad(doas), np.min(20*np.log10(p)), np.max(20*np.log10(p)), colors='g', linestyles='dashed')
         ax2.set_title('Spatial Energy Distribution')
         ax2.set_theta_offset(np.pi/2)
         ax2.set_xlim(-np.pi/2, np.pi/2)

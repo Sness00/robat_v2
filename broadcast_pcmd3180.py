@@ -14,6 +14,7 @@ def activate_mics():
             bus.write_byte_data(int(addr, 16), int('7', 16), int('60', 16))
             bus.write_byte_data(int(addr, 16), int('b', 16), int('0', 16))
             bus.write_byte_data(int(addr, 16), int('c', 16), int('20', 16))
+            bus.write_byte_data(int(addr, 16), int('20', 16), int('80', 16))
             bus.write_byte_data(int(addr, 16), int('22', 16), int('41', 16))
             bus.write_byte_data(int(addr, 16), int('2b', 16), int('40', 16))
             bus.write_byte_data(int(addr, 16), int('3c', 16), int('40', 16))

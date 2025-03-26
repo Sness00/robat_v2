@@ -175,8 +175,7 @@ if __name__ == "__main__":
                 dB_rms = 20*np.log10(np.mean(np.std(input_audio, axis=0))) # Battery is dead or not connected
                 
                 if dB_rms > output_threshold:
-                    new_idxs = np.array([1, 0, 3, 2, 5, 4, 7, 6])
-                    filtered_signals = signal.correlate(input_audio[:, new_idxs], np.reshape(sig, (-1, 1)), 'same', method='fft')
+                    filtered_signals = signal.correlate(input_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
                     roll_filt_sigs = np.roll(filtered_signals, -len(sig)//2, axis=0)
 
                     distance, direct_path = sonar(roll_filt_sigs, discarded_samples, fs)

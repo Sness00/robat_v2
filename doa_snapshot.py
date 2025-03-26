@@ -50,7 +50,7 @@ if __name__ == "__main__":
     C_AIR = 343
     nch = 8
 
-    METHOD = 'music'    
+    METHOD = 'das'    
     if METHOD == 'das':
         spatial_filter = das_filter
     elif METHOD == 'capon':
@@ -121,8 +121,7 @@ if __name__ == "__main__":
     if db_rms < -50:
         print('Low output level. Replace amp battery')
     else:
-        new_idxs = np.array([1, 0, 3, 2, 5, 4, 7, 6])
-        valid_channels_audio = input_audio[:, new_idxs]
+        valid_channels_audio = input_audio
         filtered_signals = signal.correlate(valid_channels_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
         roll_filt_sigs = np.roll(filtered_signals, -len(sig)//2, axis=0)
         envelopes = np.abs(signal.hilbert(roll_filt_sigs, axis=0))

@@ -3,61 +3,66 @@ from scipy.signal import stft
 from matplotlib import pyplot as plt
 
 def capon_method(y, fs, nch, d, bw, theta=np.linspace(-90, 90, 73), c=343, wlen=64, show=False):    
-    """
-    Simple multiband Capon MVDR spatial filter implementation.
+  """
+  Simple multiband Capon MVDR spatial filter implementation.
 
-    Parameters:
+  Parameters:
 
-      y: mic array signals
+    y: mic array signals
 
-      fs: sampling rate
+    fs: sampling rate
 
-      nch: number of mics in the array
+    nch: number of mics in the array
 
-      ns: number of sources
+    ns: number of sources
 
-      d: mic spacing
+    d: mic spacing
 
-      bw: (low freq, high freq)
+    bw: (low freq, high freq)
 
-      theta: angle vector
+    theta: angle vector
 
-      c: sound speed
+    c: sound speed
 
-      wlen: window length for stft
+    wlen: window length for stft
 
-      show: plot the pseudospectrum for each band
+    show: plot the pseudospectrum for each band
 
-    Returns: 
-      
-      theta: angle axis
-      
-      mag_p: magnitude of average spatial energy distribution estimation across bands
-    """
-    f_spec_axis, _, spectrum = stft(y, fs=fs, window=np.ones((wlen, )), nperseg=wlen, noverlap=wlen-1, axis=0)
-    bands = f_spec_axis[(f_spec_axis >= bw[0]) & (f_spec_axis <= bw[1])]
-    p = np.zeros_like(theta, dtype=complex)
-    p_i = np.zeros((len(theta), 1), dtype=complex)
-
-    for f_c in bands:
-        w_s = (2*np.pi*f_c*d*np.sin(np.deg2rad(theta))/c)        
-        a = np.exp(np.outer(np.linspace(0, nch-1, nch), -1j*w_s))
-        a_H = a.T.conj()     
-        spec = spectrum[f_spec_axis == f_c, :, :].squeeze()
-        cov_est = np.cov(spec, bias=True)
-        inv_cov_est = np.linalg.pinv(cov_est)
-        
-        for i, _ in enumerate(theta):
-            p_i[i] = 1/(a_H[i, :] @ inv_cov_est @ a[:, i])
-            if show:
-              plt.figure()
-              plt.polar(np.deg2rad(theta), 20*np.log10(np.abs(p_i)))
-              plt.xlim((-np.pi/2, np.pi/2))
-              plt.ylim((-90, -50))
-              plt.title(str(f_c))
-              plt.show()
-            p[i] += p_i[i]
+  Returns: 
     
-    mag_p = np.abs(p)/len(bands)
-        
-    return theta, mag_p
+    theta: angle axis
+    
+    mag_p: magnitude of average spatial energy distribution estimation across bands
+  """
+  f_spec_axis, _, spectrum = stft(y, fs=fs, window=np.ones((wlen, )), nperseg=wlen, noverlap=wlen-1, axis=0)
+  bands = f_spec_axis[(f_spec_axis >= bw[0]) & (f_spec_axis <= bw[1])]
+  print(bands.shape)
+  p = np.zeros_like(theta, dtype=complex)
+  p_i = np.zeros((len(theta), 1), dtype=complex)
+
+  if show:
+    plt.figure()
+
+  for f_c in bands:
+    w_s = (2*np.pi*f_c*d*np.sin(np.deg2rad(theta))/c)        
+    a = np.exp(np.outer(np.linspace(0, nch-1, nch), -1j*w_s))
+    a_H = a.T.conj()     
+    spec = spectrum[f_spec_axis == f_c, :, :].squeeze()
+    cov_est = np.cov(spec, bias=True)
+    inv_cov_est = np.linalg.pinv(cov_est)
+    
+    for i, _ in enumerate(theta):
+      p_i[i] = 1/(a_H[i, :] @ inv_cov_est @ a[:, i])
+      p[i] += p_i[i]
+
+    if show:
+      plt.polar(np.deg2rad(theta), 20*np.log10(np.abs(p_i)), label=f'{f_c} Hz')
+      plt.xlim((-np.pi/2, np.pi/2))
+      plt.title('Pseudospectra')
+            
+  if show:
+    plt.legend()
+    plt.show()
+  mag_p = np.abs(p)/len(bands)
+      
+  return theta, mag_p

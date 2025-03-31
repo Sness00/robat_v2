@@ -35,7 +35,7 @@ if __name__ == "__main__":
     fs = 192e3
     dur = 6e-3
     hi_freq = 95e3
-    low_freq = 20
+    low_freq = 15e3
     n_sweeps = 5
     
     t_tone = np.linspace(0, dur, int(fs*dur))

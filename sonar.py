@@ -1,4 +1,5 @@
 import os
+import time
 import scipy.signal as signal
 import numpy as np
 from matplotlib import pyplot as plt
@@ -32,7 +33,7 @@ def sonar(signals, discarded_samples, fs, C_AIR=343):
     
         else:
             return 0, None
-    except IndexError:
+    except Exception as e:
         t_plot = np.linspace(0, signals.shape[0]/fs, signals.shape[0])
         fig, ax = plt.subplots(4, 2, sharex=True, sharey=True)
         plt.suptitle('Recorded Audio')
@@ -45,7 +46,11 @@ def sonar(signals, discarded_samples, fs, C_AIR=343):
                 ax[i, j].grid()
         plt.tight_layout()
         plt.show()
-        plt.savefig('/logs/cross-corr.png')
-        print('\nEmission peak not identified')        
+        log_dir = './logs/'
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+        file_name = time.strftime('%Y-%m-%d_%H:%M:%S', time.localtime())
+        plt.savefig(os.path.join(log_dir, file_name))
+        print('\nException encountered:', e)        
         return 0, None
         

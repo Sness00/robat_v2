@@ -13,7 +13,7 @@ import sounddevice as sd
 from thymiodirect import Thymio, Connection
 from broadcast_pcmd3180 import activate_mics
 from das_v2 import das_filter
-from music_v2 import music
+from capon import capon_method
 from sonar import sonar
 
 def get_soundcard_iostream(device_list):
@@ -67,15 +67,15 @@ if __name__ == "__main__":
     min_distance = 10e-2
     discarded_samples = int(np.floor((min_distance*2)/C_AIR*fs))
 
-    method = 'das'
-    if method == 'das':
+    METHOD = 'das'
+    if METHOD == 'das':
         spatial_filter = das_filter
-    elif method == 'music':
-        spatial_filter = music
+    elif METHOD == 'capon':
+        spatial_filter = capon_method
+
     dur = 3e-3
     hi_freq = 60e3
     low_freq = 15e3
-    delta_freq = 0
     t_tone = np.linspace(0, dur, int(fs*dur))
     chirp = signal.chirp(t_tone, hi_freq, t_tone[-1], low_freq)
     sig = pow_two_pad_and_window(chirp, show=False)
@@ -260,14 +260,13 @@ if __name__ == "__main__":
                             
         except KeyboardInterrupt:            
             print('\nTerminated by user')
-        finally:
-            try:
-                robot['motor.left.target'] = 0
-                robot['motor.right.target'] = 0
-                robot['leds.bottom.left'] = 0
-                robot['leds.bottom.right'] = 0
-                robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 0, 0]
-                time.sleep(2)
+            robot['motor.left.target'] = 0
+            robot['motor.right.target'] = 0
+            robot['leds.bottom.left'] = 0
+            robot['leds.bottom.right'] = 0
+            robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 0, 0]
+            time.sleep(2)
+            try:                
                 th.disconnect()
             except Exception as e:
                 print('\nException encountered:', e)

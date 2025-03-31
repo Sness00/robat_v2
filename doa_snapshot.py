@@ -166,7 +166,7 @@ if __name__ == "__main__":
         
         theta_bar = theta[np.argmax(p)]
         doas = theta[signal.find_peaks(p)[0]]
-        print(f'DoA: {theta_bar} [deg]')
+        print(f'\nDoA: {theta_bar} [deg]')
 
         fig, ax2 = plt.subplots(subplot_kw={'projection': 'polar'})
 
@@ -179,4 +179,4 @@ if __name__ == "__main__":
         ax2.grid(True)
         plt.show()
     else:
-        print('Low input level. Dead battery?')
+        print('\nLow input level. Dead battery?')

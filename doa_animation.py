@@ -116,7 +116,7 @@ if __name__ == "__main__":
         input_audio = np.concatenate(all_input_audio)
         db_rms = 20*np.log10(np.std(input_audio))
         if db_rms < -50:
-            print('Low output level. Replace amp battery')
+            print('\nLow output level. Replace amp battery')
         else:
             valid_channels_audio = input_audio
             filtered_signals = signal.correlate(valid_channels_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')

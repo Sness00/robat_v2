@@ -78,13 +78,13 @@ if __name__ == "__main__":
                                 latency='low',
                                 blocksize=0 
                                 )
-            print('Stream started')
+            print('\nStream started')
             with stream:
                 while True:
                     file.write(audio_in_data.get())
 
     except KeyboardInterrupt:
-        print('Stream closed')
+        print('\nStream closed')
 
         input_audio, _ = sf.read(filename)
 
@@ -144,7 +144,7 @@ if __name__ == "__main__":
         
         theta_bar = theta[np.argmax(p)]
 
-        print(f'DoA: {theta_bar} [deg]')
+        print(f'\nDoA: {theta_bar} [deg]')
 
         fig, ax2 = plt.subplots(subplot_kw={'projection': 'polar'})
 

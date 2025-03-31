@@ -3,7 +3,7 @@ from smbus2 import SMBus
 def activate_mics():
     with SMBus(1) as bus:
         if bus.read_byte_data(int('4c', 16), int('75', 16)) != int('60', 16):
-            print('Activating converters\n')
+            print('\nActivating converters')
             
             bus.write_byte_data(int('4c', 16), int('2', 16), int('85', 16))
             bus.write_byte_data(int('4d', 16), int('2', 16), int('85', 16))
@@ -23,4 +23,4 @@ def activate_mics():
             bus.write_byte_data(int(addr, 16), int('74', 16), int('c0', 16))
             bus.write_byte_data(int(addr, 16), int('75', 16), int('60', 16))
         else:
-            print('Converters were already activated\n')
+            print('\nConverters were already activated')

@@ -48,13 +48,13 @@ if __name__ == '__main__':
                                 latency='low',
                                 blocksize=0 
                                 )
-            print('Stream started')
+            print('\nStream started')
             with stream:
                 while True:
                     file.write(audio_in_data.get())
 
     except KeyboardInterrupt:
-        print('Stream closed')
+        print('\nStream closed')
 
         input_audio, _ = sf.read(filename)
         

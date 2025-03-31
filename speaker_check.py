@@ -60,7 +60,7 @@ if __name__ == '__main__':
     time.sleep(0.5)
 
     with stream:
-        print('Stream started')
+        print('\nStream started')
         while stream.active:
             pass
-    print('Stream closed')
+    print('\nStream closed')

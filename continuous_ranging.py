@@ -1,7 +1,7 @@
 # %% 
 # Libraries and functions
-
 # import os
+import sys
 import traceback
 import time
 # from datetime import datetime
@@ -41,12 +41,12 @@ def pow_two_pad_and_window(vec, show=False):
 def pow_two(vec):
     return np.pad(vec, (0, 2**int(np.ceil(np.log2(len(vec)))) - len(vec)))
 
-def windower(a):
-    window = signal.windows.tukey(len(a), alpha=0.2)
-    if len(a.shape) > 1:
-        window = np.reshape(window, (-1, 1))
-    windowed_a = a * window
-    return windowed_a
+# def windower(a):
+#     window = signal.windows.tukey(len(a), alpha=0.2)
+#     if len(a.shape) > 1:
+#         window = np.reshape(window, (-1, 1))
+#     windowed_a = a * window
+#     return windowed_a
 
 def angle_to_time(angle, speed):
     A = 612.33
@@ -132,7 +132,7 @@ if __name__ == "__main__":
             while True:
                 # Robot left the ground
                 if (robot['prox.ground.reflected'][0] < air_threshold or robot['prox.ground.reflected'][1] < air_threshold):
-                    print('Robot left the ground')
+                    print('\nRobot left the ground')
                     raise KeyboardInterrupt
                 # Left ground sensor
                 elif robot['prox.ground.reflected'][0] > ground_threshold:
@@ -192,7 +192,7 @@ if __name__ == "__main__":
                     distance = distance*100 # [m] to [cm]
 
                     if distance < distance_threshold and distance > 0:
-                        print('Estimated distance: %3.1f' % distance, '[cm]')
+                        print('\nEstimated distance: %3.1f' % distance, '[cm]')
                         robot['leds.bottom.left'] = [0, 255, 0]
                         robot['leds.bottom.right'] = [0, 255, 0]
 
@@ -248,7 +248,7 @@ if __name__ == "__main__":
                         robot['motor.right.target'] = speed
                     
                 else:
-                    print('Low output level. Dead battery?')
+                    print('\nLow output level. Dead battery?')
                     
                 #Left proximity sensor
                 if robot['prox.horizontal'][0] > lateral_threshold:
@@ -272,7 +272,7 @@ if __name__ == "__main__":
                     robot['motor.right.target'] = speed
                         
         except KeyboardInterrupt:            
-            print('Terminated by user')
+            print('\nTerminated by user')
         finally:
             try:
                 robot['motor.left.target'] = 0
@@ -283,22 +283,12 @@ if __name__ == "__main__":
                 time.sleep(2)
                 th.disconnect()
             except Exception as e:
-                print('Exception encountered:', e)
+                print('\nException encountered:', e)
+                traceback.print_exc()
             finally:
-                print('Fin')
+                print('\nExiting')
+                sys.exit(0)
 
-    except IndexError:
-        t_plot = np.linspace(0, input_audio.shape[0]/fs, input_audio.shape[0])
-        fig, ax = plt.subplots(4, 2, sharex=True, sharey=True)
-        plt.suptitle('Recorded Audio')
-        for i in range(input_audio.shape[1]//2):
-            for j in range(2):
-                ax[i, j].plot(t_plot, input_audio[:, 2*i+j])
-                ax[i, j].set_title('Channel %d' % (2*i+j+1))
-                ax[i, j].minorticks_on()
-                ax[i, j].grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
-                ax[i, j].grid()
-        plt.tight_layout()
-        plt.show()
-    except Exception:
-        print(traceback.format_exc())
+    except Exception as e:
+        print('\nException encountered:', e)
+        traceback.print_exc()

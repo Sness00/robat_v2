@@ -111,19 +111,19 @@ if __name__ == "__main__":
                 break
                 
         if not enough:
-            print('No peaks detected')
+            print('\nNo peaks detected')
         else:
             estimated_distances = []
             mean_dist = 0
             for i, p in enumerate(peaks):
                 dist = (p - emission_peak)/fs*C_AIR/2 + 0.025
                 estimated_distances.append(dist)
-                print('Estimated distance for channel', i+1, ':', '%.3f' % dist, '[m]')    
+                print('\nEstimated distance for channel', i+1, ':', '%.3f' % dist, '[m]')    
                 mean_dist += dist
             mean_dist /= len(peaks)
             peaks_array = np.array(peaks)
 
-            print('Estimated mean distance: %.3f' % mean_dist, '[m]')
+            print('\nEstimated mean distance: %.3f' % mean_dist, '[m]')
 
         t_plot = np.linspace(0, envelopes.shape[0]/fs, envelopes.shape[0])
         fig, ax = plt.subplots(4, 2, sharex=True, sharey=True)
@@ -174,4 +174,4 @@ if __name__ == "__main__":
             plt.tight_layout()
             plt.show()
     else:
-        print('Low input level. Dead battery?')
+        print('\nLow input level. Dead battery?')

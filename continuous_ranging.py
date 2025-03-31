@@ -1,5 +1,3 @@
-# %% 
-# Libraries and functions
 # import os
 import sys
 import traceback
@@ -53,8 +51,7 @@ def angle_to_time(angle, speed):
     B = -0.94
     t = A*speed**B    
     return t * abs(angle) / 360
-# %% 
-# Main
+
 if __name__ == "__main__":
 
     # save_recordings = True
@@ -113,9 +110,9 @@ if __name__ == "__main__":
         try:
             speed = 200
             rot_speed = 200
-            lateral_threshold = 10000
+            lateral_threshold = 3800
             ground_threshold = 10000
-            air_threshold = 50
+            air_threshold = 20
             output_threshold = -48 # [dB]
             distance_threshold = 20 # [cm]
 
@@ -196,20 +193,10 @@ if __name__ == "__main__":
                         robot['leds.bottom.left'] = [0, 255, 0]
                         robot['leds.bottom.right'] = [0, 255, 0]
 
-                        # direction = random.choice(['l', 'r'])
-                        # if direction == 'l':
-                        #     robot['motor.left.target'] = -rot_speed
-                        #     robot['motor.right.target'] = rot_speed
-                        # else:
-                        #     robot['motor.left.target'] = rot_speed
-                        #     robot['motor.right.target'] = -rot_speed
-                        # time.sleep(1)
-
-
                         theta, p = spatial_filter(
                                                     roll_filt_sigs[direct_path + 40:direct_path + 40 + 380], 
                                                     fs=fs, nch=roll_filt_sigs.shape[1], d=2.70e-3, 
-                                                    bw=(low_freq + delta_freq, hi_freq - delta_freq)
+                                                    bw=(15e3, hi_freq)
                                                 )
                         p_dB = 20*np.log10(p)
                         
@@ -261,7 +248,7 @@ if __name__ == "__main__":
                     robot['motor.left.target'] = speed
                     robot['motor.right.target'] = speed
                 # Right proximity sensor
-                elif robot['prox.horizontal'][4] > lateral_threshold:
+                elif robot['prox.horizontal'][4] > lateral_threshold-1000:
                     robot['leds.bottom.right'] = [0, 0, 255]
                     robot['motor.left.target'] = -rot_speed
                     robot['motor.right.target'] = rot_speed
@@ -270,7 +257,7 @@ if __name__ == "__main__":
                     robot['leds.bottom.right'] = [0, 0, 0]
                     robot['motor.left.target'] = speed
                     robot['motor.right.target'] = speed
-                        
+                            
         except KeyboardInterrupt:            
             print('\nTerminated by user')
         finally:

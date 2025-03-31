@@ -33,7 +33,6 @@ def sonar(signals, discarded_samples, fs, C_AIR=343):
         else:
             return 0, None
     except IndexError:
-        print('\nEmission peak not identified')
         t_plot = np.linspace(0, signals.shape[0]/fs, signals.shape[0])
         fig, ax = plt.subplots(4, 2, sharex=True, sharey=True)
         plt.suptitle('Recorded Audio')
@@ -47,5 +46,6 @@ def sonar(signals, discarded_samples, fs, C_AIR=343):
         plt.tight_layout()
         plt.show()
         plt.savefig('/logs/cross-corr.png')
+        print('\nEmission peak not identified')        
         return 0, None
         

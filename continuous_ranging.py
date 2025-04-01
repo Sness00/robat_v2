@@ -196,7 +196,7 @@ if __name__ == "__main__":
                         theta, p = spatial_filter(
                                                     roll_filt_sigs[direct_path + 40:direct_path + 40 + 380], 
                                                     fs=fs, nch=roll_filt_sigs.shape[1], d=2.70e-3, 
-                                                    bw=(15e3, hi_freq)
+                                                    bw=(low_freq, hi_freq)
                                                 )
                         p_dB = 20*np.log10(p)
                         

@@ -61,7 +61,7 @@ if __name__ == "__main__":
     #     if not os.path.exists(rec_dir):
     #         os.makedirs(rec_dir)
     
-    fs = 192e3
+    fs = 176.4e3
 
     C_AIR = 343
     min_distance = 10e-2
@@ -110,9 +110,9 @@ if __name__ == "__main__":
         try:
             speed = 200
             rot_speed = 200
-            lateral_threshold = 3800
+            lateral_threshold = 30000
             ground_threshold = 10000
-            air_threshold = 20
+            air_threshold = 10
             output_threshold = -48 # [dB]
             distance_threshold = 20 # [cm]
 
@@ -174,37 +174,34 @@ if __name__ == "__main__":
 
                 input_audio = np.concatenate(all_input_audio)
 
-                # if save_recordings:
-                #     now = datetime.now()
-                #     filename = os.path.join(rec_dir, now.strftime('%Y%m%d_%H-%M-%S-%f') + '.wav')
-                #     sf.write(filename, input_audio, int(fs))
-
                 dB_rms = 20*np.log10(np.mean(np.std(input_audio, axis=0))) # Battery is dead or not connected
                 
                 if dB_rms > output_threshold:
                     filtered_signals = signal.correlate(input_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
                     roll_filt_sigs = np.roll(filtered_signals, -len(sig)//2, axis=0)
 
-                    distance, direct_path = sonar(roll_filt_sigs, discarded_samples, fs)
+                    distance, direct_path, obst_echo = sonar(roll_filt_sigs, discarded_samples, fs)
                     distance = distance*100 # [m] to [cm]
+                    # print('\nEstimated distance: %3.1f' % distance, '[cm]')
+                    
+
+                    theta, p = spatial_filter(
+                                                roll_filt_sigs[obst_echo - int(5e-4*fs):obst_echo + int(5e-4*fs)], 
+                                                fs=fs, nch=roll_filt_sigs.shape[1], d=2.70e-3, 
+                                                bw=(low_freq, hi_freq)
+                                            )
+                    p_dB = 20*np.log10(p)
+                    
+                    if direct_path != obst_echo:
+                        doa_index = np.argmax(p_dB)
+                        theta_hat = theta[doa_index]
+                        print('\nEstimated DoA: %.2f [deg]' % theta_hat)
 
                     if distance < distance_threshold and distance > 0:
                         print('\nEstimated distance: %3.1f' % distance, '[cm]')
                         robot['leds.bottom.left'] = [0, 255, 0]
                         robot['leds.bottom.right'] = [0, 255, 0]
 
-                        theta, p = spatial_filter(
-                                                    roll_filt_sigs[direct_path + 40:direct_path + 40 + 380], 
-                                                    fs=fs, nch=roll_filt_sigs.shape[1], d=2.70e-3, 
-                                                    bw=(15e3, hi_freq)
-                                                )
-                        p_dB = 20*np.log10(p)
-                        
-                        robot['leds.bottom.left'] = [0, 255, 0]
-                        robot['leds.bottom.right'] = [0, 255, 0]
-                        doa_index = np.argmax(p_dB)
-                        theta_hat = theta[doa_index]
-                        print('\nEstimated DoA: %.2f [deg]' % theta_hat)
                         if theta_hat > 0:
                             robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 255, 255]
                             direction = 'r'
@@ -257,7 +254,20 @@ if __name__ == "__main__":
                     robot['leds.bottom.right'] = [0, 0, 0]
                     robot['motor.left.target'] = speed
                     robot['motor.right.target'] = speed
-                            
+        except Exception as e:
+            print('\nException encountered:', e)
+            traceback.print_exc()
+            robot['motor.left.target'] = 0
+            robot['motor.right.target'] = 0
+            robot['leds.bottom.left'] = 0
+            robot['leds.bottom.right'] = 0
+            robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 0, 0]
+            time.sleep(2)
+            try:
+                th.disconnect()
+            except Exception as e:
+                print('\nException encountered:', e)
+                traceback.print_exc()                    
         except KeyboardInterrupt:            
             print('\nTerminated by user')
             robot['motor.left.target'] = 0

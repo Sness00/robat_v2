@@ -1,4 +1,5 @@
 import os
+import traceback
 import scipy.signal as signal
 import numpy as np
 from matplotlib import pyplot as plt
@@ -8,14 +9,14 @@ def sonar(signals, discarded_samples, fs, C_AIR=343):
     envelopes = np.abs(signal.hilbert(signals, axis=0))
     mean_envelope = np.mean(envelopes, axis=1)
 
-    idxs, _ = signal.find_peaks(mean_envelope, prominence=1)
+    idxs, _ = signal.find_peaks(mean_envelope, prominence=15)
     try:
-        emission_peak = idxs[0]    
+        emission_peak = idxs[0]
 
         peaks_positions = []
         enough = True
         for i in np.arange(envelopes.shape[1]):
-            idxs, _ = signal.find_peaks(envelopes[emission_peak + discarded_samples:, i], prominence=3)
+            idxs, _ = signal.find_peaks(envelopes[emission_peak + discarded_samples:, i], prominence=6)
             if idxs.any():
                 peaks_positions.append(idxs[0] + emission_peak + discarded_samples)
             else:
@@ -32,6 +33,6 @@ def sonar(signals, discarded_samples, fs, C_AIR=343):
         else:
             return 0, emission_peak, emission_peak
     except Exception as e:
-        print('\nException encountered:', e)        
+        print('\nException encountered:', e)  
         return 0, 0, 0
         

@@ -41,23 +41,24 @@ def pow_two_pad_and_window(vec):
     window = signal.windows.tukey(len(vec), alpha=0.3)
     windowed_vec = vec * window
     padded_windowed_vec = np.pad(windowed_vec, (0, 2**int(np.ceil(np.log2(len(windowed_vec)))) - len(windowed_vec)))
-    return padded_windowed_vec/max(padded_windowed_vec)/10
+    return padded_windowed_vec/max(padded_windowed_vec)
 
 def pow_two(vec):
     return np.pad(vec, (0, 2**int(np.ceil(np.log2(len(vec)))) - len(vec)))
 
-def recording_thread_function(filename, fs, q):
-    with sf.SoundFile(filename, mode='x', samplerate=int(fs),
-                        channels=8) as file:
-           
-        with sd.InputStream(samplerate=int(fs), device=get_soundcard_instream(sd.query_devices()),
-                            channels=8, callback=in_callback):
-            print('#' * 80)
-            print('press Ctrl+C to stop the recording')
-            print('#' * 80)
-            while True:
-                file.write(q.get())
-
+def emitting_thread_function(fs):
+    while True:
+        stream = sd.OutputStream(samplerate=fs,
+                                            blocksize=0,
+                                            device=get_soundcard_outstream(sd.query_devices()),
+                                            channels=1,
+                                            callback=out_callback,
+                                            latency='low')
+        with stream:
+            while stream.active:
+                pass
+                
+    
 if __name__ == '__main__':
 
     save_audio = True
@@ -76,6 +77,7 @@ if __name__ == '__main__':
     
     current_frame = 0
     def out_callback(outdata, frames, time, status):
+        print(frames)
         global current_frame
         if status:
             print(status)
@@ -117,22 +119,26 @@ if __name__ == '__main__':
     activate_mics()
     filename = os.path.join(rec_dir, now.strftime('%Y%m%d_%H-%M-%S') + '.wav')
     try:
-        if save_audio:
-            input_thread = threading.Thread(target=recording_thread_function, args=(filename, fs, q), daemon=True)
-            input_thread.start()
-        
-    
-            while True:
-                stream = sd.OutputStream(samplerate=fs,
-                                    blocksize=0,
-                                    device=get_soundcard_outstream(sd.query_devices()),
-                                    channels=1,
-                                    callback=out_callback,
-                                    latency='low')
-                with stream:
-                    while stream.active:
-                        pass
-                
+        with sf.SoundFile(filename, mode='x+', samplerate=int(fs),
+                        channels=8) as file:
+           
+            with sd.InputStream(samplerate=int(fs), device=get_soundcard_instream(sd.query_devices()),
+                                channels=8, callback=in_callback):
+                print('#' * 80)
+                print('press Ctrl+C to stop the recording')
+                print('#' * 80)
+                output_thread = threading.Thread(target=emitting_thread_function, args=(fs,), daemon=True)
+                output_thread.start()
+
+                while True:
+                    file.write(q.get())
+                    # print(file.frames, file.tell())
+                    pos = file.seek(file.tell() - 100)
+                    rec_audio = file.read(100)
+                    # print(rec_audio.shape)
+
+                    # rec_audio = file.read(10)
+                    # print(rec_audio.shape)
                     # rec_audio = []
                     # if not rec_q.empty():
                     #     while not rec_q.empty():

@@ -39,12 +39,6 @@ def pow_two_pad_and_window(vec, show=False):
 def pow_two(vec):
     return np.pad(vec, (0, 2**int(np.ceil(np.log2(len(vec)))) - len(vec)))
 
-# def windower(a):
-#     window = signal.windows.tukey(len(a), alpha=0.2)
-#     if len(a.shape) > 1:
-#         window = np.reshape(window, (-1, 1))
-#     windowed_a = a * window
-#     return windowed_a
 
 def angle_to_time(angle, speed):
     A = 612.33

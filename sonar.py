@@ -33,5 +33,5 @@ def sonar(signals, discarded_samples, fs, C_AIR=343):
             return 0, emission_peak, emission_peak
     except Exception as e:
         print('\nException encountered:', e)        
-        return 0, None
+        return 0, 0, 0
         

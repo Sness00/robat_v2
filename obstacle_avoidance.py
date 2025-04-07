@@ -91,6 +91,7 @@ if __name__ == "__main__":
         outdata[:chunksize] = output_sig[current_frame:current_frame + chunksize]
         if chunksize < frames:
             outdata[chunksize:] = 0
+            current_frame = 0
             raise sd.CallbackAbort()
         current_frame += chunksize
         audio_in_data.put(indata.copy())
@@ -161,7 +162,6 @@ if __name__ == "__main__":
                 with stream:
                     while stream.active:
                         pass
-                current_frame = 0
                 
                 while not audio_in_data.empty():
                     all_input_audio.append(audio_in_data.get())

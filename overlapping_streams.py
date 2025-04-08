@@ -8,7 +8,7 @@ import numpy as np
 from scipy import signal
 import sounddevice as sd
 import soundfile as sf
-from soundfile import SoundFile, SEEK_END
+import soundfile as sf
 from broadcast_pcmd3180 import activate_mics
 from sonar import sonar
 from das_v2 import das_filter
@@ -50,8 +50,7 @@ def pow_two(vec):
 
 def recording_thread_function(q):
     while True:
-        # if not mutex.locked():
-            file.write(q.get())
+        file.write(q.get())
 
 if __name__ == '__main__':
 
@@ -66,7 +65,6 @@ if __name__ == '__main__':
         if status:
             print(status)
         q.put(indata.copy())
-        # rec_q.put(indata.copy())
     
     current_frame = 0
     def out_callback(outdata, frames, time, status):
@@ -99,7 +97,7 @@ if __name__ == '__main__':
     filename = os.path.join(rec_dir, now.strftime('%Y%m%d_%H-%M-%S') + '.wav')
 
     try:
-        with SoundFile(filename, mode='x+', samplerate=int(fs),
+        with sf.SoundFile(filename, mode='x+', samplerate=int(fs),
                         channels=8) as file:
            
             with sd.InputStream(samplerate=int(fs), device=get_soundcard_instream(sd.query_devices()),
@@ -108,7 +106,6 @@ if __name__ == '__main__':
                 print('press Ctrl+C to stop the recording')
                 print('#' * 80)
                 if save_audio:
-                    # mutex = threading.Lock()
                     input_thread = threading.Thread(target=recording_thread_function, args=(q,), daemon=True)
                     input_thread.start()                    
                     while True:
@@ -122,35 +119,12 @@ if __name__ == '__main__':
                         with stream:
                             while stream.active:
                                 pass
-                        current_frame = 0
-                        # mutex.acquire()
-                        offset = file.frames - curr_end
-                        # file.seek(curr_end)
-
-                        # rec_audio = file.read(offset)
-                        rec_audio = sf.read(filename, start=curr_end, stop=curr_end+offset)[0]
-                        # print(rec_audio.shape)
-                        # mutex.release()                        
+                        current_frame = 0                       
+                        offset = file.frames - curr_end            
+                        rec_audio = sf.read(filename, start=curr_end, stop=curr_end+offset)[0]                     
                         dB_rms = 20 * np.log10(np.sqrt(np.mean(rec_audio**2))+1e-10)
                     
-                        #     # t_plot = np.linspace(0, rec_audio.shape[0]/fs, rec_audio.shape[0])
-                        #     # fig, ax = plt.subplots(4, 2, sharex=True, sharey=True)
-                        #     # plt.suptitle('Recorded Audio')
-                        #     # for i in range(rec_audio.shape[1]//2):
-                        #     #     for j in range(2):
-                        #     #         ax[i, j].plot(t_plot, rec_audio[:, 2*i+j])
-                        #     #         ax[i, j].set_title('Channel %d' % (2*i+j+1))
-                        #     #         ax[i, j].minorticks_on()
-                        #     #         ax[i, j].grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
-                        #     #         ax[i, j].grid()
-                        #     # plt.tight_layout()
-                        #     # plt.show()
                         filtered_signals = signal.correlate(rec_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
-                        # fig, ax = plt.subplots(4, 2, sharex=True, sharey=True)
-                        # for i in range(filtered_signals.shape[1]//2):
-                        #     for j in range(2):
-                        #         ax[i, j].plot(filtered_signals[:, 2*i+j])
-                        # plt.savefig(os.path.join(rec_dir, now.strftime('%Y%m%d_%H-%M-%S') + '_rec.png'))
                         roll_filt_sigs = np.roll(filtered_signals, -len(sig)//2, axis=0)
                         distance, emission, echo = sonar(roll_filt_sigs, 100, fs)
                         theta, p = das_filter(
@@ -164,25 +138,6 @@ if __name__ == '__main__':
                             doa_index = np.argmax(p_dB)
                             theta_hat = theta[doa_index]
                             print('\nDistance: %.1f [cm] | DoA: %.2f [deg]' % ((distance*100), theta_hat))
-                        # rec_audio = file.read()
-                    # rec_audio = []
-                    # if not rec_q.empty():
-                    #     while not rec_q.empty():
-                    #         rec_audio.append(rec_q.get())
-                    # rec_audio = np.concatenate(rec_audio)
-                    # print(rec_audio.shape)
-
-                    # save audio to file
-                    # filename_1 = os.path.join(rec_dir, now.strftime('%Y%m%d_%H-%M-%S-%f') + '_rec.wav')
-                    # if save_audio:                
-                    #     sf.write(filename_1, rec_audio, int(fs))
-                    # dB_rms = 20 * np.log10(np.sqrt(np.mean(rec_audio**2)))
-                    # print('dB RMS: ', dB_rms)
-                    
-                    # filtered_signals = signal.correlate(rec_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
-                    # roll_filt_sigs = np.roll(filtered_signals, -len(sig)//2, axis=0)
-                    # distance = sonar(roll_filt_sigs, 0, fs)[0]
-                    # print('\nDistance: %.1f' % (distance*100))
     except Exception as e:
         print(e)
         print(traceback.format_exc())

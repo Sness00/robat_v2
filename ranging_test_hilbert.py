@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import sounddevice as sd
-import numpy as np 
+import numpy as np
 import scipy.signal as signal
 import queue
 import time
@@ -13,7 +13,7 @@ def get_soundcard_iostream(device_list):
         if asio_in_name:
             return (i, i)
     raise ValueError('No soundcard found')
-        
+
 def pow_two_pad_and_window(vec, fs, show=False):
     window = signal.windows.tukey(len(vec), 0.3)
     windowed_vec = vec * window
@@ -30,7 +30,7 @@ def pow_two(vec):
     return np.pad(vec, (0, 2**int(np.ceil(np.log2(len(vec)))) - len(vec)))
 
 if __name__ == "__main__":
-    
+
     C_AIR = 343
     fs = 192000
 
@@ -38,11 +38,11 @@ if __name__ == "__main__":
     discarded_samples = int(np.floor((min_distance*2)/C_AIR*fs))
 
     verbose = False
-    
+
     dur = 2e-3
 
     t_tone = np.linspace(0, dur, int(fs*dur))
-    chirp = signal.chirp(t_tone, 80e3, t_tone[-1], 20e3)    
+    chirp = signal.chirp(t_tone, 80e3, t_tone[-1], 20e3)
     sig = pow_two_pad_and_window(chirp, fs, show=False)
 
     silence_dur = 30 # [ms]
@@ -71,25 +71,25 @@ if __name__ == "__main__":
     soundcard = get_soundcard_iostream(sd.query_devices())
 
     stream = sd.Stream(samplerate=fs,
-                       blocksize=0, 
-                       device=soundcard, 
+                       blocksize=0,
+                       device=soundcard,
                        channels=(8, 2),
                        callback=callback,
                        latency='low')
-    
+
     # Little pause to let the soundcard settle
     time.sleep(0.5)
 
     with stream:
         while stream.active:
             pass
-    
+
     # Transfer input data from queue to an array
     all_input_audio = []
     while not audio_in_data.empty():
-        all_input_audio.append(audio_in_data.get())            
+        all_input_audio.append(audio_in_data.get())
     input_audio = np.concatenate(all_input_audio)
-    
+
     if (20*np.log10(np.mean(np.std(input_audio, axis=0)))) > -55:
         valid_channels_audio = input_audio
         filtered_signals = signal.correlate(valid_channels_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
@@ -98,12 +98,12 @@ if __name__ == "__main__":
         mean_envelope = np.sum(envelopes, axis=1)/envelopes.shape[1]
 
         idxs, _ = signal.find_peaks(mean_envelope, prominence=10)
-        emission_peak = idxs[0]    
+        emission_peak = idxs[0]
 
         peaks = []
         enough = True
         for i in np.arange(envelopes.shape[1]):
-            idxs, _ = signal.find_peaks(envelopes[emission_peak + discarded_samples:, i], prominence=6)
+            idxs, _ = signal.find_peaks(envelopes[emission_peak + discarded_samples:, i], prominence=2.5)
             if idxs.any():
                 peaks.append(idxs[0] + emission_peak + discarded_samples)
             else:

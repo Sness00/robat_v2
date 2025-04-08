@@ -277,6 +277,7 @@ if __name__ == "__main__":
                     traceback.print_exc()                    
             except KeyboardInterrupt:            
                 print('\nTerminated by user')
+                print('\nRecording finished: ' + repr(filename))
                 robot['motor.left.target'] = 0
                 robot['motor.right.target'] = 0
                 robot['leds.bottom.left'] = 0

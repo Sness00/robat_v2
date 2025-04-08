@@ -9,7 +9,7 @@ def sonar(signals, discarded_samples, fs, C_AIR=343):
     envelopes = np.abs(signal.hilbert(signals, axis=0))
     mean_envelope = np.mean(envelopes, axis=1)
 
-    idxs, _ = signal.find_peaks(mean_envelope, prominence=15)
+    idxs, _ = signal.find_peaks(mean_envelope, prominence=10)
     try:
         emission_peak = idxs[0]
 
@@ -32,7 +32,6 @@ def sonar(signals, discarded_samples, fs, C_AIR=343):
     
         else:
             return 0, emission_peak, emission_peak
-    except Exception as e:
-        print('\nException encountered:', e)  
-        return 0, 0, 0
+    except IndexError:
+        raise ValueError
         

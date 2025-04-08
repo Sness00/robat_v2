@@ -60,7 +60,7 @@ if __name__ == "__main__":
     ground_threshold = 10000
     air_threshold = 10
     output_threshold = -50 # [dB]
-    distance_threshold = 30 # [cm]
+    distance_threshold = 25 # [cm]
 
     save_audio = True
     rec_dir = './recordings/'

@@ -15,7 +15,7 @@ from thymiodirect import Thymio, Connection
 from broadcast_pcmd3180 import activate_mics
 from das_v2 import das_filter
 from capon import capon_method
-from sonar import sonar
+from sonar import sonar 
 
 def get_soundcard(device_list):
     for i, each in enumerate(device_list):
@@ -43,19 +43,20 @@ def pow_two(vec):
 def angle_to_time(angle, speed):
     A = 612.33
     B = -0.94
-    t = A*speed**B    
-    return t * abs(angle) / 360
+    if speed:
+        t = A*speed**B    
+        return t * abs(angle) / 360
+    else:
+        return 0
 
 def recording_thread_function(q):
     while True:
         file.write(q.get())
 
 if __name__ == "__main__":
-
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
-
     speed = 200
-    rot_speed = 200
+    rot_speed = 150
     lateral_threshold = 30000
     ground_threshold = 10000
     air_threshold = 10
@@ -129,12 +130,13 @@ if __name__ == "__main__":
                 filename = os.path.join(rec_dir, now.strftime('%Y%m%d_%H-%M-%S') + '.wav')
                 with sf.SoundFile(filename, mode='x+', samplerate=int(fs),
                                 channels=8) as file:
-                
+                    print('\nOpened audio file')
                     with sd.InputStream(samplerate=int(fs), device=device,
                                         channels=8, callback=in_callback):
+                        print('\nRecording started')
                         if save_audio:
                             input_thread = threading.Thread(target=recording_thread_function, args=(q,), daemon=True)
-                            input_thread.start()
+                            input_thread.start()                            
                             robot['motor.left.target'] = speed
                             robot['motor.right.target'] = speed                    
                             while True:
@@ -149,7 +151,7 @@ if __name__ == "__main__":
                                     robot['motor.left.target'] = rot_speed
                                     robot['motor.right.target'] = -rot_speed
                                     while robot['prox.ground.reflected'][0] > ground_threshold:
-                                        pass
+                                        time.sleep(0.1)
                                     robot['leds.bottom.left'] = [0, 0, 0]
                                     robot['leds.bottom.right'] = [0, 0, 0]
                                     robot['motor.left.target'] = speed
@@ -161,7 +163,7 @@ if __name__ == "__main__":
                                     robot['motor.left.target'] = -rot_speed
                                     robot['motor.right.target'] = rot_speed
                                     while robot['prox.ground.reflected'][1] > ground_threshold:
-                                        pass
+                                        time.sleep(0.1)
                                     robot['motor.left.target'] = speed
                                     robot['motor.right.target'] = speed
                                     robot['leds.bottom.left'] = [0, 0, 0]
@@ -191,7 +193,7 @@ if __name__ == "__main__":
                                             distance, direct_path, obst_echo = sonar(roll_filt_sigs, discarded_samples, fs)
                                             distance = distance*100 # [m] to [cm]                                    
                                             if distance == 0:
-                                                print('No Obstacles')
+                                                print('\nNo Obstacles')
                                             theta, p = spatial_filter(
                                                                         roll_filt_sigs[obst_echo - int(5e-4*fs):obst_echo + int(5e-4*fs)], 
                                                                         fs=fs, nch=roll_filt_sigs.shape[1], d=2.70e-3, 
@@ -211,11 +213,11 @@ if __name__ == "__main__":
                                                 if theta_hat > 0:
                                                     robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 255, 255]
                                                     direction = 'r'
-                                                    t_rot = angle_to_time(theta_hat + 20, rot_speed)
+                                                    t_rot = angle_to_time(theta_hat, rot_speed)
                                                 elif theta_hat < 0:
                                                     robot['leds.circle'] = [0, 255, 255, 0, 0, 0, 0, 0]
                                                     direction = 'l'
-                                                    t_rot = angle_to_time(theta_hat, rot_speed)
+                                                    t_rot = angle_to_time(theta_hat - 30, rot_speed)
                                                 else:
                                                     robot['leds.circle'] = [255, 0, 0, 0, 0, 0, 0, 0]
                                                     direction = random.choice(['l', 'r'])
@@ -277,10 +279,10 @@ if __name__ == "__main__":
                 except Exception as e:
                     print('\nException encountered:', e)
                     traceback.print_exc()                    
-            except KeyboardInterrupt:            
-                print('\nTerminated by user')
-                print('\nRecording finished: ' + repr(filename))
+            except KeyboardInterrupt:
                 end_of_recording = datetime.now()
+                print('\nTerminated by user')
+                print('\nRecording finished: ' + repr(filename))                
                 print('Recording time: %.0f [s] | Audio file length: %.0f [s]' % ((end_of_recording - now).total_seconds(), file.frames/fs))
                 robot['motor.left.target'] = 0
                 robot['motor.right.target'] = 0

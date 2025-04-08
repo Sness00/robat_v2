@@ -1,9 +1,5 @@
-import os
-import traceback
-import scipy.signal as signal
+from scipy import signal
 import numpy as np
-from matplotlib import pyplot as plt
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 def sonar(signals, discarded_samples, fs, C_AIR=343):
     envelopes = np.abs(signal.hilbert(signals, axis=0))
@@ -21,17 +17,16 @@ def sonar(signals, discarded_samples, fs, C_AIR=343):
                 peaks_positions.append(idxs[0] + emission_peak + discarded_samples)
             else:
                 enough = False
-                break
-                
+                break  
+
         if enough:
-            earliest_peak = np.min(peaks_positions)
-            
-            dist = (earliest_peak - emission_peak)/fs*C_AIR/2 + 0.025
-               
+            earliest_peak = np.min(peaks_positions)            
+            dist = (earliest_peak - emission_peak)/fs*C_AIR/2 + 0.025               
             return dist, emission_peak, earliest_peak
-    
+            
         else:
             return 0, emission_peak, emission_peak
+        
     except IndexError:
         raise ValueError
         

@@ -57,7 +57,7 @@ if __name__ == "__main__":
     speed = 200
     rot_speed = 200
     lateral_threshold = 30000
-    ground_threshold = 400
+    ground_threshold = 10000
     air_threshold = 10
     output_threshold = -50 # [dB]
     distance_threshold = 25 # [cm]
@@ -112,10 +112,7 @@ if __name__ == "__main__":
     output_sig = np.float32(np.reshape(full_sig, (-1, 1)))
 
     device = get_soundcard(sd.query_devices())
-
-    now = datetime.now()
     activate_mics()
-    filename = os.path.join(rec_dir, now.strftime('%Y%m%d_%H-%M-%S') + '.wav')
 
     try:
         port = Connection.serial_default_port()
@@ -125,11 +122,11 @@ if __name__ == "__main__":
             th.connect()
             robot = th[th.first_node()]            
             # Delay to allow robot initialization of all variables
-            time.sleep(1)
-            
-            robot['motor.left.target'] = speed
-            robot['motor.right.target'] = speed
+            time.sleep(1)            
+           
             try:
+                now = datetime.now()    
+                filename = os.path.join(rec_dir, now.strftime('%Y%m%d_%H-%M-%S') + '.wav')
                 with sf.SoundFile(filename, mode='x+', samplerate=int(fs),
                                 channels=8) as file:
                 
@@ -137,7 +134,9 @@ if __name__ == "__main__":
                                         channels=8, callback=in_callback):
                         if save_audio:
                             input_thread = threading.Thread(target=recording_thread_function, args=(q,), daemon=True)
-                            input_thread.start()                    
+                            input_thread.start()
+                            robot['motor.left.target'] = speed
+                            robot['motor.right.target'] = speed                    
                             while True:
                                 # Robot left the ground
                                 if (robot['prox.ground.reflected'][0] < air_threshold or robot['prox.ground.reflected'][1] < air_threshold):
@@ -191,7 +190,8 @@ if __name__ == "__main__":
                                         try:
                                             distance, direct_path, obst_echo = sonar(roll_filt_sigs, discarded_samples, fs)
                                             distance = distance*100 # [m] to [cm]                                    
-
+                                            if distance == 0:
+                                                print('No Obstacles')
                                             theta, p = spatial_filter(
                                                                         roll_filt_sigs[obst_echo - int(5e-4*fs):obst_echo + int(5e-4*fs)], 
                                                                         fs=fs, nch=roll_filt_sigs.shape[1], d=2.70e-3, 
@@ -280,6 +280,8 @@ if __name__ == "__main__":
             except KeyboardInterrupt:            
                 print('\nTerminated by user')
                 print('\nRecording finished: ' + repr(filename))
+                end_of_recording = datetime.now()
+                print('Recording time: %.0f [s] | Audio file length: %.0f [s]' % ((end_of_recording - now).total_seconds(), file.frames/fs))
                 robot['motor.left.target'] = 0
                 robot['motor.right.target'] = 0
                 robot['leds.bottom.left'] = 0

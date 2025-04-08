@@ -57,7 +57,7 @@ if __name__ == "__main__":
     speed = 200
     rot_speed = 200
     lateral_threshold = 30000
-    ground_threshold = 10000
+    ground_threshold = 400
     air_threshold = 10
     output_threshold = -50 # [dB]
     distance_threshold = 25 # [cm]
@@ -183,7 +183,7 @@ if __name__ == "__main__":
                                 if offset > 0:            
                                     input_audio = sf.read(filename, start=curr_end, stop=curr_end+offset)[0] 
 
-                                    dB_rms = 20*np.log10(np.mean(np.std(input_audio, axis=0))) # Battery is dead or not connected
+                                    dB_rms = 20*np.log10(np.mean(np.std(input_audio, axis=0)))
                                     
                                     if dB_rms > output_threshold:
                                         filtered_signals = signal.correlate(input_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
@@ -211,7 +211,7 @@ if __name__ == "__main__":
                                                 if theta_hat > 0:
                                                     robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 255, 255]
                                                     direction = 'r'
-                                                    t_rot = angle_to_time(theta_hat, rot_speed)
+                                                    t_rot = angle_to_time(theta_hat + 20, rot_speed)
                                                 elif theta_hat < 0:
                                                     robot['leds.circle'] = [0, 255, 255, 0, 0, 0, 0, 0]
                                                     direction = 'l'
@@ -237,30 +237,32 @@ if __name__ == "__main__":
                                                 robot['motor.left.target'] = speed
                                                 robot['motor.right.target'] = speed
                                         except ValueError:
-                                            pass
+                                            print('\nNo valid distance or DoA')                                        
+                                    else:
+                                        print('\nLow output level. Dead battery?')
                                 else:
-                                    print('\nLow output level. Dead battery?')
+                                    print('\nNo audio data')
                     
-                                #Left proximity sensor
-                                if robot['prox.horizontal'][0] > lateral_threshold:
-                                    robot['leds.bottom.left'] = [0, 0, 255]
-                                    robot['motor.left.target'] = rot_speed
-                                    robot['motor.right.target'] = -rot_speed
-                                    while robot['prox.horizontal'][0] > lateral_threshold:
-                                        pass
-                                    robot['leds.bottom.left'] = [0, 0, 0]
-                                    robot['motor.left.target'] = speed
-                                    robot['motor.right.target'] = speed
-                                # Right proximity sensor
-                                elif robot['prox.horizontal'][4] > lateral_threshold-1000:
-                                    robot['leds.bottom.right'] = [0, 0, 255]
-                                    robot['motor.left.target'] = -rot_speed
-                                    robot['motor.right.target'] = rot_speed
-                                    while robot['prox.horizontal'][4] > lateral_threshold:
-                                        pass
-                                    robot['leds.bottom.right'] = [0, 0, 0]
-                                    robot['motor.left.target'] = speed
-                                    robot['motor.right.target'] = speed
+                                # #Left proximity sensor
+                                # if robot['prox.horizontal'][0] > lateral_threshold:
+                                #     robot['leds.bottom.left'] = [0, 0, 255]
+                                #     robot['motor.left.target'] = rot_speed
+                                #     robot['motor.right.target'] = -rot_speed
+                                #     while robot['prox.horizontal'][0] > lateral_threshold:
+                                #         pass
+                                #     robot['leds.bottom.left'] = [0, 0, 0]
+                                #     robot['motor.left.target'] = speed
+                                #     robot['motor.right.target'] = speed
+                                # # Right proximity sensor
+                                # elif robot['prox.horizontal'][4] > lateral_threshold-1000:
+                                #     robot['leds.bottom.right'] = [0, 0, 255]
+                                #     robot['motor.left.target'] = -rot_speed
+                                #     robot['motor.right.target'] = rot_speed
+                                #     while robot['prox.horizontal'][4] > lateral_threshold:
+                                #         pass
+                                #     robot['leds.bottom.right'] = [0, 0, 0]
+                                #     robot['motor.left.target'] = speed
+                                #     robot['motor.right.target'] = speed
             except Exception as e:
                 print('\nException encountered:', e)
                 traceback.print_exc()

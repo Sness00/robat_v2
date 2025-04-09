@@ -58,7 +58,7 @@ if __name__ == "__main__":
     speed = 200
     rot_speed = 150
     lateral_threshold = 30000
-    ground_threshold = 10000
+    ground_threshold = 400
     air_threshold = 10
     output_threshold = -50 # [dB]
     distance_threshold = 25 # [cm]
@@ -101,7 +101,7 @@ if __name__ == "__main__":
 
     dur = 3e-3
     hi_freq = 60e3
-    low_freq = 15e3
+    low_freq = 20e3
     t_tone = np.linspace(0, dur, int(fs*dur))
     chirp = signal.chirp(t_tone, hi_freq, t_tone[-1], low_freq)
     sig = pow_two_pad_and_window(chirp, show=False)
@@ -168,7 +168,7 @@ if __name__ == "__main__":
                                     robot['motor.right.target'] = speed
                                     robot['leds.bottom.left'] = [0, 0, 0]
                                     robot['leds.bottom.right'] = [0, 0, 0]
-
+                            
                                 curr_end = file.frames                    
                                 stream = sd.OutputStream(samplerate=fs,
                                                     blocksize=0,

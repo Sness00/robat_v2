@@ -64,7 +64,7 @@ if __name__ == "__main__":
     # discarded_samples = 480
     dur = 3e-3
     hi_freq = 60e3
-    low_freq = 10e3
+    low_freq = 20e3
 
     t_tone = np.linspace(0, dur, int(fs*dur))
     chirp = signal.chirp(t_tone, hi_freq, t_tone[-1], low_freq)    

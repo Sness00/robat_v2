@@ -52,7 +52,7 @@ if __name__ == "__main__":
     sig, _ = sf.read('15k-60k.wav', start=first_sample, stop=last_sample)
 
     hi_freq = 60e3
-    low_freq = 15e3
+    low_freq = 20e3
 
     rec_dir = './recordings/'
     if not os.path.exists(rec_dir):

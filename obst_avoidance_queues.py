@@ -58,7 +58,7 @@ if __name__ == "__main__":
     speed = 200
     rot_speed = 150
     lateral_threshold = 30000
-    ground_threshold = 400
+    ground_threshold = 10000
     air_threshold = 10
     output_threshold = -50 # [dB]
     distance_threshold = 25 # [cm]
@@ -69,11 +69,13 @@ if __name__ == "__main__":
         os.makedirs(rec_dir)
 
     q = queue.Queue()
+    analysis_q = queue.Queue()
 
     def in_callback(indata, frames, time, status):
         if status:
             print(status)
         q.put(indata.copy())
+        analysis_q.put(indata.copy())
     
     current_frame = 0
     def out_callback(outdata, frames, time, status):
@@ -180,9 +182,14 @@ if __name__ == "__main__":
                                     while stream.active:
                                         pass
                                 current_frame = 0
-                                offset = file.frames - curr_end
-                                if offset > 0:            
-                                    input_audio = sf.read(filename, start=curr_end, stop=curr_end+offset)[0] 
+                                
+                                if not analysis_q.empty():
+                                    all_input_audio = []
+                                    c = 0
+                                    while c < 5:
+                                        all_input_audio.append(analysis_q.get())
+                                        c += 1
+                                    input_audio = np.concatenate(all_input_audio)
 
                                     dB_rms = 20*np.log10(np.mean(np.std(input_audio, axis=0)))
                                     

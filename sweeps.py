@@ -37,7 +37,7 @@ if __name__ == "__main__":
     hi_freq = 95e3
     low_freq = 15e3
     n_sweeps = 5
-    
+
     t_tone = np.linspace(0, dur, int(fs*dur))
     chirp = signal.chirp(t_tone, hi_freq, t_tone[-1], low_freq)
     sig = pow_two_pad_and_window(chirp, show=False)

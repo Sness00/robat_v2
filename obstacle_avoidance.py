@@ -151,7 +151,7 @@ if __name__ == "__main__":
                                     robot['motor.left.target'] = rot_speed
                                     robot['motor.right.target'] = -rot_speed
                                     while robot['prox.ground.reflected'][0] > ground_threshold:
-                                        time.sleep(0.1)
+                                        time.sleep(0.5)
                                     robot['leds.bottom.left'] = [0, 0, 0]
                                     robot['leds.bottom.right'] = [0, 0, 0]
                                     robot['motor.left.target'] = speed
@@ -163,7 +163,7 @@ if __name__ == "__main__":
                                     robot['motor.left.target'] = -rot_speed
                                     robot['motor.right.target'] = rot_speed
                                     while robot['prox.ground.reflected'][1] > ground_threshold:
-                                        time.sleep(0.1)
+                                        time.sleep(0.5)
                                     robot['motor.left.target'] = speed
                                     robot['motor.right.target'] = speed
                                     robot['leds.bottom.left'] = [0, 0, 0]
@@ -210,14 +210,14 @@ if __name__ == "__main__":
                                                 robot['leds.bottom.left'] = [0, 255, 0]
                                                 robot['leds.bottom.right'] = [0, 255, 0]
 
-                                                if (theta_hat >= 0 and theta_hat <= 60):
+                                                if (theta_hat >= 0 and theta_hat <= 90):
                                                     robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 255, 255]
                                                     direction = 'r'
                                                     t_rot = angle_to_time(30, rot_speed)
                                                     robot['motor.left.target'] = rot_speed
                                                     robot['motor.right.target'] = -rot_speed
                                                     time.sleep(t_rot)
-                                                elif (theta_hat < 0 and theta_hat >= -60):
+                                                elif (theta_hat < 0 and theta_hat >= -90):
                                                     robot['leds.circle'] = [0, 255, 255, 0, 0, 0, 0, 0]
                                                     direction = 'l'
                                                     t_rot = angle_to_time(30, rot_speed)

@@ -210,27 +210,25 @@ if __name__ == "__main__":
                                                 robot['leds.bottom.left'] = [0, 255, 0]
                                                 robot['leds.bottom.right'] = [0, 255, 0]
 
-                                                if theta_hat > 0:
+                                                if (theta_hat >= 0 and theta_hat <= 60):
                                                     robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 255, 255]
                                                     direction = 'r'
-                                                    t_rot = angle_to_time(theta_hat, rot_speed)
-                                                elif theta_hat < 0:
-                                                    robot['leds.circle'] = [0, 255, 255, 0, 0, 0, 0, 0]
-                                                    direction = 'l'
-                                                    t_rot = angle_to_time(theta_hat - 30, rot_speed)
-                                                else:
-                                                    robot['leds.circle'] = [255, 0, 0, 0, 0, 0, 0, 0]
-                                                    direction = random.choice(['l', 'r'])
-                                                    t_rot = angle_to_time(180, rot_speed)
-
-                                                if direction == 'l':
-                                                    robot['motor.left.target'] = -rot_speed
-                                                    robot['motor.right.target'] = rot_speed
-                                                else:
+                                                    t_rot = angle_to_time(30, rot_speed)
                                                     robot['motor.left.target'] = rot_speed
                                                     robot['motor.right.target'] = -rot_speed
-                                                
-                                                time.sleep(t_rot)
+                                                    time.sleep(t_rot)
+                                                elif (theta_hat < 0 and theta_hat >= -60):
+                                                    robot['leds.circle'] = [0, 255, 255, 0, 0, 0, 0, 0]
+                                                    direction = 'l'
+                                                    t_rot = angle_to_time(30, rot_speed)
+                                                    robot['motor.left.target'] = -rot_speed
+                                                    robot['motor.right.target'] = rot_speed
+                                                    time.sleep(t_rot)
+                                                else:
+                                                    # robot['leds.circle'] = [255, 0, 0, 0, 0, 0, 0, 0]
+                                                    # direction = random.choice(['l', 'r'])
+                                                    # t_rot = angle_to_time(180, rot_speed)
+                                                    pass
 
                                                 robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 0, 0]
                                                 

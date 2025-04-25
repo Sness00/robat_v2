@@ -132,7 +132,7 @@ if __name__ == "__main__":
                 windower(filtered_signals[furthest_peak+discarded_samples:furthest_peak+discarded_samples+processed_samples]),
                     fs=fs, nch=filtered_signals.shape[1], d=2.70e-3, bw=(low_freq, hi_freq)
                     )
-            p_dB = 20*np.log10(p)
+            p_dB = 10*np.log10(p)
             
             if max(p_dB) > 0:
                 ax.set_ylim(1.1*min(p_dB), 1.1*max(p_dB))

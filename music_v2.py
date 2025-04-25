@@ -2,7 +2,7 @@ import numpy as np
 from scipy.signal import stft
 from matplotlib import pyplot as plt
 
-def music(y, fs, nch, d, bw, theta=np.linspace(-90, 90, 73), c=343, wlen=64, ns=3, show=False):    
+def music(y, fs, nch, d, bw, theta=np.linspace(-90, 90, 73), c=343, wlen=64, ns=1, show=False):    
   """
   Simple multiband MUltiple SIgnal Classification spatial filter implementation.
 
@@ -62,7 +62,7 @@ def music(y, fs, nch, d, bw, theta=np.linspace(-90, 90, 73), c=343, wlen=64, ns=
       p[i] += p_i[i]
 
     if show:
-      ax.plot(np.deg2rad(theta), 20*np.log10(np.abs(p_i)), label=f'{f_c} Hz')
+      ax.plot(np.deg2rad(theta), 10*np.log10(np.abs(p_i)), label=f'{f_c} Hz')
   
   if show:
     ax.set_xlim((-np.pi/2, np.pi/2))

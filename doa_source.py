@@ -148,7 +148,7 @@ if __name__ == "__main__":
 
         fig, ax2 = plt.subplots(subplot_kw={'projection': 'polar'})
 
-        ax2.plot(np.deg2rad(theta), 20*np.log10(p), color='r')
+        ax2.plot(np.deg2rad(theta), 10*np.log10(p), color='r')
         ax2.set_title('Spatial Energy Distribution')
         ax2.set_xlabel('Angle [deg]')   
         ax2.set_theta_offset(np.pi/2)

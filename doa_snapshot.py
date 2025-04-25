@@ -43,7 +43,7 @@ if __name__ == "__main__":
     C_AIR = 343
     nch = 8
 
-    METHOD = 'das'    
+    METHOD = 'music'    
     if METHOD == 'das':
         spatial_filter = das_filter
     elif METHOD == 'capon':
@@ -52,7 +52,7 @@ if __name__ == "__main__":
         spatial_filter = music
     
     verbose = False
-    field_range = 40e-2
+    field_range = 50e-2
     discarded_samples = int(np.floor((field_range*2)/C_AIR*fs)) - 60
     print(discarded_samples)
     processed_samples = 512
@@ -124,7 +124,7 @@ if __name__ == "__main__":
         envelopes = np.abs(signal.hilbert(roll_filt_sigs, axis=0))
 
         mean_env = np.sum(envelopes, axis=1)/envelopes.shape[1]
-        peaks, _ = signal.find_peaks(mean_env, prominence=1, distance=30)
+        peaks, _ = signal.find_peaks(mean_env, prominence=10)
 
         furthest_peak = peaks[0]
 
@@ -164,15 +164,15 @@ if __name__ == "__main__":
                                     show=True, 
                                     wlen=128
                                     )
-        
-        theta_bar = theta[np.argmax(p)]
-        doas = theta[signal.find_peaks(p)[0]]
+        p_dB = 10*np.log10(p)
+        theta_bar = theta[np.argmax(p_dB)]
+        doas = theta[signal.find_peaks(p_dB, prominence=10)[0]]
         print(f'\nDoA: {theta_bar} [deg]')
 
         fig, ax2 = plt.subplots(subplot_kw={'projection': 'polar'})
 
-        ax2.plot(np.deg2rad(theta), 20*np.log10(p), color='r')
-        ax2.vlines(np.deg2rad(doas), np.min(20*np.log10(p)), np.max(20*np.log10(p)), colors='g', linestyles='dashed')
+        ax2.plot(np.deg2rad(theta), p_dB, color='r')
+        ax2.vlines(np.deg2rad(doas), np.min(p_dB), np.max(p_dB), colors='g', linestyles='dashed')
         ax2.set_title('Spatial Energy Distribution')
         ax2.set_theta_offset(np.pi/2)
         ax2.set_xlim(-np.pi/2, np.pi/2)

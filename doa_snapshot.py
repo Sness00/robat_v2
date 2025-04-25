@@ -1,16 +1,16 @@
 import os
 import time
+from datetime import datetime
 import queue
 import numpy as np
-import scipy.signal as signal
-import matplotlib.pyplot as plt
+from scipy import signal
+from matplotlib import pyplot as plt
 import sounddevice as sd
+import soundfile as sf
 from broadcast_pcmd3180 import activate_mics
 from das_v2 import das_filter
 from capon import capon_method
 from music_v2 import music
-
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 def get_soundcard_iostream(device_list):
     for i, each in enumerate(device_list):
@@ -21,7 +21,7 @@ def get_soundcard_iostream(device_list):
     raise ValueError('No soundcard found')
         
 def pow_two_pad_and_window(vec, fs, show=False):
-    window = signal.windows.tukey(len(vec), alpha=0.5)
+    window = signal.windows.tukey(len(vec), alpha=0.3)
     windowed_vec = vec * window
     padded_windowed_vec = np.pad(windowed_vec, (0, 2**int(np.ceil(np.log2(len(windowed_vec)))) - len(windowed_vec)))
     if show:
@@ -35,14 +35,9 @@ def pow_two_pad_and_window(vec, fs, show=False):
 def pow_two(vec):
     return np.pad(vec, (0, 2**int(np.ceil(np.log2(len(vec)))) - len(vec)))
 
-def windower(a):
-    window = signal.windows.tukey(len(a), alpha=0.2)
-    if len(a.shape) > 1:
-        window = np.reshape(window, (-1, 1))
-    windowed_a = a * window
-    return windowed_a
-
 if __name__ == "__main__":
+
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
     fs = 192000
     C_AIR = 343
@@ -57,11 +52,10 @@ if __name__ == "__main__":
         spatial_filter = music
     
     verbose = False
-    field_range = 50e-2
+    field_range = 80e-2
     discarded_samples = int(np.floor((field_range*2)/C_AIR*fs)) - 60
     print(discarded_samples)
-    processed_samples = 1024
-    # discarded_samples = 480
+    processed_samples = 512
     dur = 3e-3
     hi_freq = 60e3
     low_freq = 20e3
@@ -118,6 +112,13 @@ if __name__ == "__main__":
 
     if db_rms > -50:
         valid_channels_audio = input_audio
+        rec_dir = './doa_data/'
+        if not os.path.exists(rec_dir):
+            os.makedirs(rec_dir)
+        now = datetime.now()
+        filename = os.path.join(rec_dir, now.strftime('%Y%m%d_%H-%M-%S') + '.wav')
+        sf.write(filename, valid_channels_audio, fs)
+        print('\nRecording saved in %s' % filename)
         filtered_signals = signal.correlate(valid_channels_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
         roll_filt_sigs = np.roll(filtered_signals, -len(sig)//2, axis=0)
         envelopes = np.abs(signal.hilbert(roll_filt_sigs, axis=0))

@@ -58,7 +58,7 @@ if __name__ == "__main__":
     speed = 200
     rot_speed = 150
     lateral_threshold = 30000
-    ground_threshold = 400
+    ground_threshold = 10000
     air_threshold = 10
     output_threshold = -50 # [dB]
     distance_threshold = 25 # [cm]
@@ -93,7 +93,7 @@ if __name__ == "__main__":
     min_distance = 10e-2
     discarded_samples = int(np.floor((min_distance*2)/C_AIR*fs))
 
-    METHOD = 'das'
+    METHOD = 'capon'
     if METHOD == 'das':
         spatial_filter = das_filter
     elif METHOD == 'capon':
@@ -151,7 +151,7 @@ if __name__ == "__main__":
                                     robot['motor.left.target'] = rot_speed
                                     robot['motor.right.target'] = -rot_speed
                                     while robot['prox.ground.reflected'][0] > ground_threshold:
-                                        time.sleep(0.5)
+                                        time.sleep(0.1)
                                     robot['leds.bottom.left'] = [0, 0, 0]
                                     robot['leds.bottom.right'] = [0, 0, 0]
                                     robot['motor.left.target'] = speed
@@ -163,7 +163,7 @@ if __name__ == "__main__":
                                     robot['motor.left.target'] = -rot_speed
                                     robot['motor.right.target'] = rot_speed
                                     while robot['prox.ground.reflected'][1] > ground_threshold:
-                                        time.sleep(0.5)
+                                        time.sleep(0.1)
                                     robot['motor.left.target'] = speed
                                     robot['motor.right.target'] = speed
                                     robot['leds.bottom.left'] = [0, 0, 0]
@@ -213,14 +213,14 @@ if __name__ == "__main__":
                                                 if (theta_hat >= 0 and theta_hat <= 90):
                                                     robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 255, 255]
                                                     direction = 'r'
-                                                    t_rot = angle_to_time(30, rot_speed)
+                                                    t_rot = angle_to_time(20, rot_speed)
                                                     robot['motor.left.target'] = rot_speed
                                                     robot['motor.right.target'] = -rot_speed
                                                     time.sleep(t_rot)
                                                 elif (theta_hat < 0 and theta_hat >= -90):
                                                     robot['leds.circle'] = [0, 255, 255, 0, 0, 0, 0, 0]
                                                     direction = 'l'
-                                                    t_rot = angle_to_time(30, rot_speed)
+                                                    t_rot = angle_to_time(20, rot_speed)
                                                     robot['motor.left.target'] = -rot_speed
                                                     robot['motor.right.target'] = rot_speed
                                                     time.sleep(t_rot)

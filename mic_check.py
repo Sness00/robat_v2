@@ -21,7 +21,7 @@ if __name__ == '__main__':
     abspath = os.path.abspath(__file__)
     dname = os.path.dirname(abspath)
     os.chdir(dname)
-    
+    verbose = False
     fs = 192e3
 
     rec_dir = './recordings/'
@@ -48,26 +48,27 @@ if __name__ == '__main__':
                                 latency='low',
                                 blocksize=0 
                                 )
-            print('\nStream started')
+            print('\nRecording started')
             with stream:
                 while True:
                     file.write(audio_in_data.get())
 
     except KeyboardInterrupt:
-        print('\nStream closed')
+        print('\nRecording saved in %s' % filename)
 
-        input_audio, _ = sf.read(filename)
-        
-        t = np.linspace(0, len(input_audio)/fs, len(input_audio))
+        if verbose:
+            input_audio, _ = sf.read(filename)
+            
+            t = np.linspace(0, len(input_audio)/fs, len(input_audio))
 
-        fig, ax = plt.subplots(4, 2, sharex=True, sharey=True)
-        plt.suptitle('Recorded Audio')
-        for i in range(input_audio.shape[1]//2):
-            for j in range(2):
-                ax[i, j].plot(t, input_audio[:, 2*i+j])
-                ax[i, j].set_title('Channel %d' % (2*i+j+1))
-                ax[i, j].minorticks_on()
-                ax[i, j].grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
-                ax[i, j].grid()
-        plt.tight_layout()
-        plt.show()
+            fig, ax = plt.subplots(4, 2, sharex=True, sharey=True)
+            plt.suptitle('Recorded Audio')
+            for i in range(input_audio.shape[1]//2):
+                for j in range(2):
+                    ax[i, j].plot(t, input_audio[:, 2*i+j])
+                    ax[i, j].set_title('Channel %d' % (2*i+j+1))
+                    ax[i, j].minorticks_on()
+                    ax[i, j].grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
+                    ax[i, j].grid()
+            plt.tight_layout()
+            plt.show()

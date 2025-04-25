@@ -1,7 +1,8 @@
-import matplotlib.pyplot as plt
+from matplotlib import pyplot as plt
 import sounddevice as sd
+import soundfile as sf
 import numpy as np
-import scipy.signal as signal
+from scipy import signal
 import queue
 import time
 from broadcast_pcmd3180 import activate_mics
@@ -39,7 +40,7 @@ if __name__ == "__main__":
 
     verbose = False
 
-    dur = 2e-3
+    dur = 3e-3
 
     t_tone = np.linspace(0, dur, int(fs*dur))
     chirp = signal.chirp(t_tone, 80e3, t_tone[-1], 20e3)
@@ -114,16 +115,11 @@ if __name__ == "__main__":
             print('\nNo peaks detected')
         else:
             estimated_distances = []
-            mean_dist = 0
             for i, p in enumerate(peaks):
                 dist = (p - emission_peak)/fs*C_AIR/2 + 0.025
                 estimated_distances.append(dist)
                 print('\nEstimated distance for channel', i+1, ':', '%.3f' % dist, '[m]')    
-                mean_dist += dist
-            mean_dist /= len(peaks)
             peaks_array = np.array(peaks)
-
-            print('\nEstimated mean distance: %.3f' % mean_dist, '[m]')
 
         t_plot = np.linspace(0, envelopes.shape[0]/fs, envelopes.shape[0])
         fig, ax = plt.subplots(4, 2, sharex=True, sharey=True)

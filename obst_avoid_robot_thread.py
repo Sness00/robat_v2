@@ -53,6 +53,54 @@ def recording_thread_function(q):
     while True:
         file.write(q.get())
 
+def robot_controls():
+    try:
+        port = Connection.serial_default_port()
+        try:
+            th = Thymio(serial_port=port,
+            on_connect=lambda node_id: print(f'\nThymio {node_id} is connected'))
+            th.connect()
+            robot = th[th.first_node()]            
+            # Delay to allow robot initialization of all variables
+            time.sleep(1) 
+            robot['motor.left.target'] = speed
+            robot['motor.right.target'] = speed                    
+            while True:
+                # Robot left the ground
+                if (robot['prox.ground.reflected'][0] < air_threshold or robot['prox.ground.reflected'][1] < air_threshold):
+                    print('\nRobot left the ground')
+                    raise KeyboardInterrupt
+                # Left ground sensor
+                elif robot['prox.ground.reflected'][0] > ground_threshold:
+                    robot['leds.bottom.left'] = [255, 0, 0]
+                    robot['leds.bottom.right'] = [255, 0, 0]
+                    robot['motor.left.target'] = rot_speed
+                    robot['motor.right.target'] = -rot_speed
+                    while robot['prox.ground.reflected'][0] > ground_threshold:
+                        time.sleep(0.5)
+                    robot['leds.bottom.left'] = [0, 0, 0]
+                    robot['leds.bottom.right'] = [0, 0, 0]
+                    robot['motor.left.target'] = speed
+                    robot['motor.right.target'] = speed
+                # Right ground sensor
+                elif robot['prox.ground.reflected'][1] > ground_threshold:
+                    robot['leds.bottom.left'] = [255, 0, 0]
+                    robot['leds.bottom.right'] = [255, 0, 0]
+                    robot['motor.left.target'] = -rot_speed
+                    robot['motor.right.target'] = rot_speed
+                    while robot['prox.ground.reflected'][1] > ground_threshold:
+                        time.sleep(0.5)
+                    robot['motor.left.target'] = speed
+                    robot['motor.right.target'] = speed
+                    robot['leds.bottom.left'] = [0, 0, 0]
+                    robot['leds.bottom.right'] = [0, 0, 0]
+        except Exception as e:
+                print('\nException encountered:', e)
+                traceback.print_exc()
+    except Exception as e:
+        print('\nException encountered:', e)
+        traceback.print_exc()
+
 if __name__ == "__main__":
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     speed = 200
@@ -113,193 +161,84 @@ if __name__ == "__main__":
     output_sig = np.float32(np.reshape(full_sig, (-1, 1)))
 
     device = get_soundcard(sd.query_devices())
-    activate_mics()
-
+    activate_mics()          
     try:
-        port = Connection.serial_default_port()
-        try:
-            th = Thymio(serial_port=port,
-            on_connect=lambda node_id: print(f'\nThymio {node_id} is connected'))
-            th.connect()
-            robot = th[th.first_node()]            
-            # Delay to allow robot initialization of all variables
-            time.sleep(1)            
-           
-            try:
-                now = datetime.now()    
-                filename = os.path.join(rec_dir, now.strftime('%Y%m%d_%H-%M-%S') + '.wav')
-                with sf.SoundFile(filename, mode='x+', samplerate=int(fs),
-                                channels=8) as file:
-                    print('\nOpened audio file')
-                    with sd.InputStream(samplerate=int(fs), device=device,
-                                        channels=8, callback=in_callback):
-                        print('\nRecording started')
-                        if save_audio:
-                            input_thread = threading.Thread(target=recording_thread_function, args=(q,), daemon=True)
-                            input_thread.start()                            
-                            robot['motor.left.target'] = speed
-                            robot['motor.right.target'] = speed                    
-                            while True:
-                                # Robot left the ground
-                                if (robot['prox.ground.reflected'][0] < air_threshold or robot['prox.ground.reflected'][1] < air_threshold):
-                                    print('\nRobot left the ground')
-                                    raise KeyboardInterrupt
-                                # Left ground sensor
-                                elif robot['prox.ground.reflected'][0] > ground_threshold:
-                                    robot['leds.bottom.left'] = [255, 0, 0]
-                                    robot['leds.bottom.right'] = [255, 0, 0]
-                                    robot['motor.left.target'] = rot_speed
-                                    robot['motor.right.target'] = -rot_speed
-                                    while robot['prox.ground.reflected'][0] > ground_threshold:
-                                        time.sleep(0.5)
-                                    robot['leds.bottom.left'] = [0, 0, 0]
-                                    robot['leds.bottom.right'] = [0, 0, 0]
-                                    robot['motor.left.target'] = speed
-                                    robot['motor.right.target'] = speed
-                                # Right ground sensor
-                                elif robot['prox.ground.reflected'][1] > ground_threshold:
-                                    robot['leds.bottom.left'] = [255, 0, 0]
-                                    robot['leds.bottom.right'] = [255, 0, 0]
-                                    robot['motor.left.target'] = -rot_speed
-                                    robot['motor.right.target'] = rot_speed
-                                    while robot['prox.ground.reflected'][1] > ground_threshold:
-                                        time.sleep(0.5)
-                                    robot['motor.left.target'] = speed
-                                    robot['motor.right.target'] = speed
-                                    robot['leds.bottom.left'] = [0, 0, 0]
-                                    robot['leds.bottom.right'] = [0, 0, 0]
+        now = datetime.now()    
+        filename = os.path.join(rec_dir, now.strftime('%Y%m%d_%H-%M-%S') + '.wav')
+        with sf.SoundFile(filename, mode='x+', samplerate=int(fs),
+                        channels=8) as file:
+            print('\nOpened audio file')
+            with sd.InputStream(samplerate=int(fs), device=device,
+                                channels=8, callback=in_callback):
+                print('\nRecording started')
+                if save_audio:
+                    input_thread = threading.Thread(target=recording_thread_function, args=(q,), daemon=True)
+                    input_thread.start()                            
+                    while True:                        
+                        curr_end = file.frames                    
+                        stream = sd.OutputStream(samplerate=fs,
+                                            blocksize=0,
+                                            device=device,
+                                            channels=1,
+                                            callback=out_callback,
+                                            latency='low')
+                        with stream:
+                            while stream.active:
+                                pass
+                        current_frame = 0
+                        offset = file.frames - curr_end
+                        if offset > 0:            
+                            input_audio = sf.read(filename, start=curr_end, stop=curr_end+offset)[0] 
+
+                            dB_rms = 20*np.log10(np.mean(np.std(input_audio, axis=0)))
                             
-                                curr_end = file.frames                    
-                                stream = sd.OutputStream(samplerate=fs,
-                                                    blocksize=0,
-                                                    device=device,
-                                                    channels=1,
-                                                    callback=out_callback,
-                                                    latency='low')
-                                with stream:
-                                    while stream.active:
-                                        pass
-                                current_frame = 0
-                                offset = file.frames - curr_end
-                                if offset > 0:            
-                                    input_audio = sf.read(filename, start=curr_end, stop=curr_end+offset)[0] 
-
-                                    dB_rms = 20*np.log10(np.mean(np.std(input_audio, axis=0)))
+                            if dB_rms > output_threshold:
+                                filtered_signals = signal.correlate(input_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
+                                roll_filt_sigs = np.roll(filtered_signals, -len(sig)//2, axis=0)
+                                try:
+                                    distance, direct_path, obst_echo = sonar(roll_filt_sigs, discarded_samples, fs)
+                                    distance = distance*100 # [m] to [cm]                                    
+                                    if distance == 0:
+                                        print('\nNo Obstacles')
+                                    theta, p = spatial_filter(
+                                                                roll_filt_sigs[obst_echo - int(5e-4*fs):obst_echo + int(5e-4*fs)], 
+                                                                fs=fs, nch=roll_filt_sigs.shape[1], d=2.70e-3, 
+                                                                bw=(low_freq, hi_freq)
+                                                            )
+                                    p_dB = 20*np.log10(p)
                                     
-                                    if dB_rms > output_threshold:
-                                        filtered_signals = signal.correlate(input_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
-                                        roll_filt_sigs = np.roll(filtered_signals, -len(sig)//2, axis=0)
-                                        try:
-                                            distance, direct_path, obst_echo = sonar(roll_filt_sigs, discarded_samples, fs)
-                                            distance = distance*100 # [m] to [cm]                                    
-                                            if distance == 0:
-                                                print('\nNo Obstacles')
-                                            theta, p = spatial_filter(
-                                                                        roll_filt_sigs[obst_echo - int(5e-4*fs):obst_echo + int(5e-4*fs)], 
-                                                                        fs=fs, nch=roll_filt_sigs.shape[1], d=2.70e-3, 
-                                                                        bw=(low_freq, hi_freq)
-                                                                    )
-                                            p_dB = 20*np.log10(p)
-                                            
-                                            if direct_path != obst_echo:
-                                                doa_index = np.argmax(p_dB)
-                                                theta_hat = theta[doa_index]
-                                                print('\nDistance: %.1f [cm] | DoA: %.2f [deg]' % (distance, theta_hat))
+                                    if direct_path != obst_echo:
+                                        doa_index = np.argmax(p_dB)
+                                        theta_hat = theta[doa_index]
+                                        print('\nDistance: %.1f [cm] | DoA: %.2f [deg]' % (distance, theta_hat))
 
-                                            if distance < distance_threshold and distance > 0:
-                                                robot['leds.bottom.left'] = [0, 255, 0]
-                                                robot['leds.bottom.right'] = [0, 255, 0]
+                                    if distance < distance_threshold and distance > 0:
 
-                                                if (theta_hat >= 0 and theta_hat <= 90):
-                                                    robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 255, 255]
-                                                    direction = 'r'
-                                                    t_rot = angle_to_time(30, rot_speed)
-                                                    robot['motor.left.target'] = rot_speed
-                                                    robot['motor.right.target'] = -rot_speed
-                                                    time.sleep(t_rot)
-                                                elif (theta_hat < 0 and theta_hat >= -90):
-                                                    robot['leds.circle'] = [0, 255, 255, 0, 0, 0, 0, 0]
-                                                    direction = 'l'
-                                                    t_rot = angle_to_time(30, rot_speed)
-                                                    robot['motor.left.target'] = -rot_speed
-                                                    robot['motor.right.target'] = rot_speed
-                                                    time.sleep(t_rot)
-                                                else:
-                                                    # robot['leds.circle'] = [255, 0, 0, 0, 0, 0, 0, 0]
-                                                    # direction = random.choice(['l', 'r'])
-                                                    # t_rot = angle_to_time(180, rot_speed)
-                                                    pass
-
-                                                robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 0, 0]
-                                                
-                                                robot['leds.bottom.left'] = [0, 0, 0]
-                                                robot['leds.bottom.right'] = [0, 0, 0]
-                                                robot['motor.left.target'] = speed
-                                                robot['motor.right.target'] = speed
-                                        except ValueError:
-                                            print('\nNo valid distance or DoA')                                        
-                                    else:
-                                        print('\nLow output level. Dead battery?')
-                                else:
-                                    print('\nNo audio data')
-                    
-                                # #Left proximity sensor
-                                # if robot['prox.horizontal'][0] > lateral_threshold:
-                                #     robot['leds.bottom.left'] = [0, 0, 255]
-                                #     robot['motor.left.target'] = rot_speed
-                                #     robot['motor.right.target'] = -rot_speed
-                                #     while robot['prox.horizontal'][0] > lateral_threshold:
-                                #         pass
-                                #     robot['leds.bottom.left'] = [0, 0, 0]
-                                #     robot['motor.left.target'] = speed
-                                #     robot['motor.right.target'] = speed
-                                # # Right proximity sensor
-                                # elif robot['prox.horizontal'][4] > lateral_threshold-1000:
-                                #     robot['leds.bottom.right'] = [0, 0, 255]
-                                #     robot['motor.left.target'] = -rot_speed
-                                #     robot['motor.right.target'] = rot_speed
-                                #     while robot['prox.horizontal'][4] > lateral_threshold:
-                                #         pass
-                                #     robot['leds.bottom.right'] = [0, 0, 0]
-                                #     robot['motor.left.target'] = speed
-                                #     robot['motor.right.target'] = speed
-            except Exception as e:
-                print('\nException encountered:', e)
-                traceback.print_exc()
-                robot['motor.left.target'] = 0
-                robot['motor.right.target'] = 0
-                robot['leds.bottom.left'] = 0
-                robot['leds.bottom.right'] = 0
-                robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 0, 0]
-                time.sleep(1)
-                try:
-                    th.disconnect()
-                except Exception as e:
-                    print('\nException encountered:', e)
-                    traceback.print_exc()                    
-            except KeyboardInterrupt:
-                end_of_recording = datetime.now()
-                print('\nTerminated by user')
-                print('\nRecording finished: ' + repr(filename))                
-                print('Recording time: %.0f [s] | Audio file length: %.0f [s]' % ((end_of_recording - now).total_seconds(), file.frames/fs))
-                robot['motor.left.target'] = 0
-                robot['motor.right.target'] = 0
-                robot['leds.bottom.left'] = 0
-                robot['leds.bottom.right'] = 0
-                robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 0, 0]
-                time.sleep(1)
-                try:                
-                    th.disconnect()
-                except Exception as e:
-                    print('\nException encountered:', e)
-                    traceback.print_exc()
-                finally:
-                    print('\nExiting')
-                    sys.exit(0)
-
-        except Exception as e:
-            print('\nException encountered:', e)
-            traceback.print_exc()
+                                        if (theta_hat >= 0 and theta_hat <= 90):
+                                            direction = 'r'
+                                            t_rot = angle_to_time(30, rot_speed)
+                                            time.sleep(t_rot)
+                                        elif (theta_hat < 0 and theta_hat >= -90):
+                                            direction = 'l'
+                                            t_rot = angle_to_time(30, rot_speed)
+                                            time.sleep(t_rot)
+                                        else:
+                                            # robot['leds.circle'] = [255, 0, 0, 0, 0, 0, 0, 0]
+                                            # direction = random.choice(['l', 'r'])
+                                            # t_rot = angle_to_time(180, rot_speed)
+                                            pass
+                                except ValueError:
+                                    print('\nNo valid distance or DoA')                                        
+                            else:
+                                print('\nLow output level. Dead battery?')
+                        else:
+                            print('\nNo audio data')
     except Exception as e:
-            print('\nException encountered:', e)
-            traceback.print_exc()
+        print('\nException encountered:', e)
+        traceback.print_exc()
+        time.sleep(1)             
+    except KeyboardInterrupt:
+        end_of_recording = datetime.now()
+        print('\nTerminated by user')
+        print('\nRecording finished: ' + repr(filename))                
+        print('Recording time: %.0f [s] | Audio file length: %.0f [s]' % ((end_of_recording - now).total_seconds(), file.frames/fs))    

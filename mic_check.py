@@ -24,7 +24,7 @@ if __name__ == '__main__':
     verbose = False
     fs = 192e3
 
-    rec_dir = './recordings/'
+    rec_dir = './mic_tests/'
     if not os.path.exists(rec_dir):
         os.makedirs(rec_dir)
     audio_in_data = queue.Queue()

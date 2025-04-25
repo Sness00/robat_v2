@@ -64,7 +64,7 @@ if __name__ == "__main__":
     distance_threshold = 25 # [cm]
 
     save_audio = True
-    rec_dir = './recordings/'
+    rec_dir = './maze_runs/'
     if not os.path.exists(rec_dir):
         os.makedirs(rec_dir)
 

@@ -34,13 +34,16 @@ def pow_two(vec):
 
 if __name__ == "__main__":
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    verbose = False
+    save_recordings = False
+    
     C_AIR = 343
     fs = 192000
 
     min_distance = 10e-2
     discarded_samples = int(np.floor((min_distance*2)/C_AIR*fs))
 
-    verbose = False
+    
 
     dur = 3e-3
 
@@ -95,13 +98,14 @@ if __name__ == "__main__":
 
     if (20*np.log10(np.mean(np.std(input_audio, axis=0)))) > -55:
         valid_channels_audio = input_audio
-        rec_dir = './ranging_data/'
-        if not os.path.exists(rec_dir):
-            os.makedirs(rec_dir)
-        now = datetime.now()
-        filename = os.path.join(rec_dir, now.strftime('%Y%m%d_%H-%M-%S') + '.wav')
-        sf.write(filename, valid_channels_audio, fs)
-        print('\nRecording saved to', filename)
+        if save_recordings:
+            rec_dir = './ranging_data/'
+            if not os.path.exists(rec_dir):
+                os.makedirs(rec_dir)
+            now = datetime.now()
+            filename = os.path.join(rec_dir, now.strftime('%Y%m%d_%H-%M-%S') + '.wav')
+            sf.write(filename, valid_channels_audio, fs)
+            print('\nRecording saved to', filename)
         filtered_signals = signal.correlate(valid_channels_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
         roll_filt_sigs = np.roll(filtered_signals, -len(sig)//2, axis=0)
         envelopes = np.abs(signal.hilbert(roll_filt_sigs, axis=0))

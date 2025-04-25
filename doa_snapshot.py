@@ -38,12 +38,14 @@ def pow_two(vec):
 if __name__ == "__main__":
 
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    verbose = False
+    save_recordings = False
 
     fs = 192000
     C_AIR = 343
     nch = 8
 
-    METHOD = 'music'    
+    METHOD = 'das'    
     if METHOD == 'das':
         spatial_filter = das_filter
     elif METHOD == 'capon':
@@ -51,7 +53,7 @@ if __name__ == "__main__":
     elif METHOD == 'music':
         spatial_filter = music
     
-    verbose = False
+    
     field_range = 50e-2
     discarded_samples = int(np.floor((field_range*2)/C_AIR*fs)) - 60
     print(discarded_samples)
@@ -112,13 +114,14 @@ if __name__ == "__main__":
 
     if db_rms > -50:
         valid_channels_audio = input_audio
-        rec_dir = './doa_data/'
-        if not os.path.exists(rec_dir):
-            os.makedirs(rec_dir)
-        now = datetime.now()
-        filename = os.path.join(rec_dir, now.strftime('%Y%m%d_%H-%M-%S') + '.wav')
-        sf.write(filename, valid_channels_audio, fs)
-        print('\nRecording saved in %s' % filename)
+        if save_recordings:
+            rec_dir = './doa_data/'
+            if not os.path.exists(rec_dir):
+                os.makedirs(rec_dir)
+            now = datetime.now()
+            filename = os.path.join(rec_dir, now.strftime('%Y%m%d_%H-%M-%S') + '.wav')
+            sf.write(filename, valid_channels_audio, fs)
+            print('\nRecording saved in %s' % filename)
         filtered_signals = signal.correlate(valid_channels_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
         roll_filt_sigs = np.roll(filtered_signals, -len(sig)//2, axis=0)
         envelopes = np.abs(signal.hilbert(roll_filt_sigs, axis=0))
@@ -128,8 +131,33 @@ if __name__ == "__main__":
 
         furthest_peak = peaks[0]
 
-        if verbose:
+        theta, p = spatial_filter(
+            roll_filt_sigs[furthest_peak+discarded_samples:furthest_peak+discarded_samples+processed_samples],
+                                    fs=fs, 
+                                    nch=roll_filt_sigs.shape[1], 
+                                    d=2.70e-3, 
+                                    bw=(low_freq, hi_freq), 
+                                    show=False, 
+                                    wlen=128
+                                    )
+        p_dB = 10*np.log10(p)
+        theta_bar = theta[np.argmax(p_dB)]
+        max_height = max(p_dB)
+        doas = theta[signal.find_peaks(p_dB, height=(max_height-6, max_height))[0]]
+        print(f'\nDoA: {theta_bar} [deg]')
 
+        fig, ax2 = plt.subplots(subplot_kw={'projection': 'polar'})
+
+        ax2.plot(np.deg2rad(theta), p_dB)
+        ax2.vlines(np.deg2rad(doas), np.min(p_dB), np.max(p_dB), colors='r', linestyles='dashed')
+        ax2.set_title('Spatial Energy Distribution')
+        ax2.set_theta_offset(np.pi/2)
+        ax2.set_xlim(-np.pi/2, np.pi/2)
+        ax2.set_xticks(np.deg2rad([-90, -75, -60, -45, -30, -15, 0, 15, 30, 45, 60, 75, 90]))    
+        ax2.grid(True)
+        plt.show()
+
+        if verbose:
             fig, ax = plt.subplots(4, 2, sharex=True, sharey=True)
             plt.suptitle('Channel Envelopes')
             for i in range(envelopes.shape[1]//2):
@@ -154,30 +182,5 @@ if __name__ == "__main__":
                     ax[j, i].grid()
             plt.tight_layout()
             plt.show()
-
-        theta, p = spatial_filter(
-            roll_filt_sigs[furthest_peak+discarded_samples:furthest_peak+discarded_samples+processed_samples],
-                                    fs=fs, 
-                                    nch=roll_filt_sigs.shape[1], 
-                                    d=2.70e-3, 
-                                    bw=(low_freq, hi_freq), 
-                                    show=True, 
-                                    wlen=128
-                                    )
-        p_dB = 10*np.log10(p)
-        theta_bar = theta[np.argmax(p_dB)]
-        doas = theta[signal.find_peaks(p_dB, prominence=10)[0]]
-        print(f'\nDoA: {theta_bar} [deg]')
-
-        fig, ax2 = plt.subplots(subplot_kw={'projection': 'polar'})
-
-        ax2.plot(np.deg2rad(theta), p_dB, color='r')
-        ax2.vlines(np.deg2rad(doas), np.min(p_dB), np.max(p_dB), colors='g', linestyles='dashed')
-        ax2.set_title('Spatial Energy Distribution')
-        ax2.set_theta_offset(np.pi/2)
-        ax2.set_xlim(-np.pi/2, np.pi/2)
-        ax2.set_xticks(np.deg2rad([-90, -75, -60, -45, -30, -15, 0, 15, 30, 45, 60, 75, 90]))    
-        ax2.grid(True)
-        plt.show()
     else:
         print('\nLow input level. Dead battery?')

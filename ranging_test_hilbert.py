@@ -101,6 +101,7 @@ if __name__ == "__main__":
         now = datetime.now()
         filename = os.path.join(rec_dir, now.strftime('%Y%m%d_%H-%M-%S') + '.wav')
         sf.write(filename, valid_channels_audio, fs)
+        print('\nRecording saved to', filename)
         filtered_signals = signal.correlate(valid_channels_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
         roll_filt_sigs = np.roll(filtered_signals, -len(sig)//2, axis=0)
         envelopes = np.abs(signal.hilbert(roll_filt_sigs, axis=0))

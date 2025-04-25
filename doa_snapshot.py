@@ -43,7 +43,7 @@ if __name__ == "__main__":
     C_AIR = 343
     nch = 8
 
-    METHOD = 'music'    
+    METHOD = 'das'    
     if METHOD == 'das':
         spatial_filter = das_filter
     elif METHOD == 'capon':
@@ -52,7 +52,7 @@ if __name__ == "__main__":
         spatial_filter = music
     
     verbose = False
-    field_range = 80e-2
+    field_range = 40e-2
     discarded_samples = int(np.floor((field_range*2)/C_AIR*fs)) - 60
     print(discarded_samples)
     processed_samples = 512

@@ -62,6 +62,7 @@ if __name__ == "__main__":
     air_threshold = 10
     output_threshold = -50 # [dB]
     distance_threshold = 25 # [cm]
+    hard_turn_threshold = 15 # [cm]
 
     save_audio = True
     rec_dir = './maze_runs/'
@@ -209,18 +210,19 @@ if __name__ == "__main__":
                                             if distance < distance_threshold and distance > 0:
                                                 robot['leds.bottom.left'] = [0, 255, 0]
                                                 robot['leds.bottom.right'] = [0, 255, 0]
-
+                                                if distance < hard_turn_threshold:
+                                                    angle = 35
+                                                else:
+                                                    angle = 20
                                                 if (theta_hat >= 0 and theta_hat <= 90):
-                                                    robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 255, 255]
-                                                    direction = 'r'
-                                                    t_rot = angle_to_time(20, rot_speed)
+                                                    robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 255, 255]                                                    
+                                                    t_rot = angle_to_time(angle, rot_speed)
                                                     robot['motor.left.target'] = rot_speed
                                                     robot['motor.right.target'] = -rot_speed
                                                     time.sleep(t_rot)
                                                 elif (theta_hat < 0 and theta_hat >= -90):
                                                     robot['leds.circle'] = [0, 255, 255, 0, 0, 0, 0, 0]
-                                                    direction = 'l'
-                                                    t_rot = angle_to_time(20, rot_speed)
+                                                    t_rot = angle_to_time(angle, rot_speed)
                                                     robot['motor.left.target'] = -rot_speed
                                                     robot['motor.right.target'] = rot_speed
                                                     time.sleep(t_rot)

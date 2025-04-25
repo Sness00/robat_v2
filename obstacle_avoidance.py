@@ -58,7 +58,7 @@ if __name__ == "__main__":
     speed = 200
     rot_speed = 150
     lateral_threshold = 30000
-    ground_threshold = 10000
+    ground_threshold = 400
     air_threshold = 10
     output_threshold = -50 # [dB]
     distance_threshold = 25 # [cm]
@@ -199,7 +199,7 @@ if __name__ == "__main__":
                                                                         fs=fs, nch=roll_filt_sigs.shape[1], d=2.70e-3, 
                                                                         bw=(low_freq, hi_freq)
                                                                     )
-                                            p_dB = 20*np.log10(p)
+                                            p_dB = 10*np.log10(p)
                                             
                                             if direct_path != obst_echo:
                                                 doa_index = np.argmax(p_dB)

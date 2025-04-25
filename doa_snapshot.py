@@ -45,7 +45,7 @@ if __name__ == "__main__":
     C_AIR = 343
     nch = 8
 
-    METHOD = 'das'    
+    METHOD = 'capon'    
     if METHOD == 'das':
         spatial_filter = das_filter
     elif METHOD == 'capon':
@@ -57,7 +57,7 @@ if __name__ == "__main__":
     field_range = 50e-2
     discarded_samples = int(np.floor((field_range*2)/C_AIR*fs)) - 60
     print(discarded_samples)
-    processed_samples = 512
+    processed_samples = 192
     dur = 3e-3
     hi_freq = 60e3
     low_freq = 20e3
@@ -153,7 +153,7 @@ if __name__ == "__main__":
         ax2.set_title('Spatial Energy Distribution')
         ax2.set_theta_offset(np.pi/2)
         ax2.set_xlim(-np.pi/2, np.pi/2)
-        ax2.set_xticks(np.deg2rad([-90, -75, -60, -45, -30, -15, 0, 15, 30, 45, 60, 75, 90]))    
+        ax2.set_xticks(np.deg2rad([-80, -60, -40, -20, 0, 20, 40, 60, 80]))    
         ax2.grid(True)
         plt.show()
 
@@ -162,8 +162,8 @@ if __name__ == "__main__":
             plt.suptitle('Channel Envelopes')
             for i in range(envelopes.shape[1]//2):
                 for j in range(2):
-                    ax[i, j].plot(envelopes[:, 2*i+j])
-                    ax[i, j].vlines(np.array([furthest_peak, furthest_peak+discarded_samples, furthest_peak+discarded_samples+processed_samples]), 0, 20, colors='r', linestyles='dashed')
+                    ax[i, j].plot(roll_filt_sigs[:, 2*i+j])
+                    ax[i, j].vlines(np.array([furthest_peak, furthest_peak+discarded_samples, furthest_peak+discarded_samples+processed_samples]), -20, 20, colors='r', linestyles='dashed')
                     ax[i, j].set_title('Channel %d' % (2*i+j+1))
                     ax[i, j].minorticks_on()
                     ax[i, j].grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
@@ -171,16 +171,16 @@ if __name__ == "__main__":
             plt.tight_layout()
             plt.show()
 
-            fig, ax = plt.subplots(nch//2, 2, sharex=True, sharey=True)
-            plt.suptitle('Input Audio')
-            for i in range(2):
-                for j in range(nch//2):
-                    ax[j, i].plot(input_audio[:, i*nch//2+j])
-                    ax[j, i].vlines(np.array([furthest_peak, furthest_peak+discarded_samples, furthest_peak+discarded_samples+processed_samples]),
-                                    -0.75, 0.75, colors='r', linestyles='dashed')
-                    ax[j, i].set_title(f'Channel {i*nch//2+j+1}')
-                    ax[j, i].grid()
-            plt.tight_layout()
-            plt.show()
+            # fig, ax = plt.subplots(nch//2, 2, sharex=True, sharey=True)
+            # plt.suptitle('Input Audio')
+            # for i in range(2):
+            #     for j in range(nch//2):
+            #         ax[j, i].plot(input_audio[:, i*nch//2+j])
+            #         ax[j, i].vlines(np.array([furthest_peak, furthest_peak+discarded_samples, furthest_peak+discarded_samples+processed_samples]),
+            #                         -0.75, 0.75, colors='r', linestyles='dashed')
+            #         ax[j, i].set_title(f'Channel {i*nch//2+j+1}')
+            #         ax[j, i].grid()
+            # plt.tight_layout()
+            # plt.show()
     else:
         print('\nLow input level. Dead battery?')

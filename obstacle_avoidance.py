@@ -58,10 +58,10 @@ if __name__ == "__main__":
     speed = 200
     rot_speed = 150
     lateral_threshold = 30000
-    ground_threshold = 10000
+    ground_threshold = 400
     air_threshold = 10
     output_threshold = -50 # [dB]
-    distance_threshold = 25 # [cm]
+    distance_threshold = 20 # [cm]
     hard_turn_threshold = 15 # [cm]
 
     save_audio = True
@@ -92,7 +92,7 @@ if __name__ == "__main__":
     fs = 176.4e3
 
     C_AIR = 343
-    min_distance = 5e-2
+    min_distance = 10e-2
     discarded_samples = int(np.floor((min_distance*2)/C_AIR*fs))
 
     METHOD = 'das'
@@ -139,8 +139,7 @@ if __name__ == "__main__":
                         if save_audio:
                             input_thread = threading.Thread(target=recording_thread_function, args=(q,), daemon=True)
                             input_thread.start()                            
-                            robot['motor.left.target'] = speed
-                            robot['motor.right.target'] = speed                    
+                                                
                             while True:
                                 # Robot left the ground
                                 if (robot['prox.ground.reflected'][0] < air_threshold or robot['prox.ground.reflected'][1] < air_threshold):
@@ -183,7 +182,9 @@ if __name__ == "__main__":
                                         pass
                                 
                                 offset = file.frames - curr_end
-                                if offset > 0:            
+                                if offset > 0:
+                                    robot['motor.left.target'] = speed
+                                    robot['motor.right.target'] = speed            
                                     input_audio = sf.read(filename, start=curr_end, stop=curr_end+offset)[0] 
 
                                     dB_rms = 20*np.log10(np.mean(np.std(input_audio, axis=0)))
@@ -212,22 +213,22 @@ if __name__ == "__main__":
                                                 robot['leds.bottom.left'] = [0, 255, 0]
                                                 robot['leds.bottom.right'] = [0, 255, 0]
                                                 if distance < hard_turn_threshold:
-                                                    angle = 35
+                                                    angle = 20
                                                 else:
                                                     angle = 20
-                                                if theta_hat >= 5:
+                                                if (theta_hat > 0 and theta_hat < 40):
                                                     robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 255, 255]                                                    
                                                     t_rot = angle_to_time(angle, rot_speed)
                                                     robot['motor.left.target'] = rot_speed
                                                     robot['motor.right.target'] = -rot_speed
                                                     time.sleep(t_rot)
-                                                elif theta_hat <= -5:
+                                                elif (theta_hat < 0 and theta_hat > -50):
                                                     robot['leds.circle'] = [0, 255, 255, 0, 0, 0, 0, 0]
                                                     t_rot = angle_to_time(angle, rot_speed)
                                                     robot['motor.left.target'] = -rot_speed
                                                     robot['motor.right.target'] = rot_speed
                                                     time.sleep(t_rot)
-                                                else:
+                                                elif theta_hat == 0:
                                                     robot['leds.circle'] = [255, 0, 0, 0, 0, 0, 0, 0]
                                                     t_rot = angle_to_time(angle, rot_speed)
                                                     direction = random.choice([-1, 1])
@@ -247,6 +248,8 @@ if __name__ == "__main__":
                                         print('\nLow output level. Dead battery?')
                                 else:
                                     print('\nNo audio data')
+                                    robot['motor.left.target'] = 0
+                                    robot['motor.right.target'] = 0
                     
                                 # #Left proximity sensor
                                 # if robot['prox.horizontal'][0] > lateral_threshold:

@@ -2,6 +2,7 @@ __pycache__
 *.mp3
 *.wav
 autocorrelation.py
+mic_tests
 recordings
 doa_data
 ranging_data

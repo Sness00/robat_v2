@@ -58,7 +58,7 @@ if __name__ == "__main__":
     speed = 200
     rot_speed = 150
     lateral_threshold = 30000
-    ground_threshold = 400
+    ground_threshold = 10000
     air_threshold = 10
     output_threshold = -50 # [dB]
     distance_threshold = 25 # [cm]
@@ -83,18 +83,19 @@ if __name__ == "__main__":
             print(status)
         chunksize = min(len(output_sig) - current_frame, frames)
         outdata[:chunksize] = output_sig[current_frame:current_frame + chunksize]
-        if chunksize < frames:
-            outdata[chunksize:] = 0            
-            raise sd.CallbackStop()
         current_frame += chunksize
-    
+        if chunksize < frames:
+            outdata[chunksize:] = 0
+            current_frame = 0
+            raise sd.CallbackStop()
+        
     fs = 176.4e3
 
     C_AIR = 343
-    min_distance = 10e-2
+    min_distance = 5e-2
     discarded_samples = int(np.floor((min_distance*2)/C_AIR*fs))
 
-    METHOD = 'capon'
+    METHOD = 'das'
     if METHOD == 'das':
         spatial_filter = das_filter
     elif METHOD == 'capon':
@@ -180,7 +181,7 @@ if __name__ == "__main__":
                                 with stream:
                                     while stream.active:
                                         pass
-                                current_frame = 0
+                                
                                 offset = file.frames - curr_end
                                 if offset > 0:            
                                     input_audio = sf.read(filename, start=curr_end, stop=curr_end+offset)[0] 

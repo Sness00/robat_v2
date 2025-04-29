@@ -37,18 +37,18 @@ def pow_two(vec):
 
 if __name__ == "__main__":
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    
+
     verbose = False
     save_recordings = True
     multiple_sources = False
 
-    obst_position = input('Ground truth obstacle position (deg): ')
+    obst_position = 90
     
-    fs = 192000
+    fs = 176400
     C_AIR = 343
     nch = 8
 
-    METHOD = 'das'    
+    METHOD = 'music'    
     if METHOD == 'das':
         spatial_filter = das_filter
         plot_title = 'Delay and Sum'

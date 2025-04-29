@@ -36,22 +36,28 @@ def pow_two(vec):
     return np.pad(vec, (0, 2**int(np.ceil(np.log2(len(vec)))) - len(vec)))
 
 if __name__ == "__main__":
-
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    
     verbose = False
-    save_recordings = False
+    save_recordings = True
+    multiple_sources = False
 
+    obst_position = input('Ground truth obstacle position (deg): ')
+    
     fs = 192000
     C_AIR = 343
     nch = 8
 
-    METHOD = 'capon'    
+    METHOD = 'das'    
     if METHOD == 'das':
         spatial_filter = das_filter
+        plot_title = 'Delay and Sum'
     elif METHOD == 'capon':
         spatial_filter = capon_method
+        plot_title = 'Minimum Variance Distortionless Response'
     elif METHOD == 'music':
         spatial_filter = music
+        plot_title = 'MUltiple SIgnal Classification'
     
     
     field_range = 50e-2
@@ -115,11 +121,11 @@ if __name__ == "__main__":
     if db_rms > -50:
         valid_channels_audio = input_audio
         if save_recordings:
-            rec_dir = './doa_data/'
+            rec_dir = './doa_data/audio'
             if not os.path.exists(rec_dir):
                 os.makedirs(rec_dir)
             now = datetime.now()
-            filename = os.path.join(rec_dir, now.strftime('%Y%m%d_%H-%M-%S') + '.wav')
+            filename = os.path.join(rec_dir, METHOD + '_' + now.strftime('%Y%m%d_%H-%M-%S') + '.wav')
             sf.write(filename, valid_channels_audio, fs)
             print('\nRecording saved in %s' % filename)
         filtered_signals = signal.correlate(valid_channels_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
@@ -141,35 +147,45 @@ if __name__ == "__main__":
                                     wlen=128
                                     )
         p_dB = 10*np.log10(p)
+        if save_recordings:
+            rec_dir = './doa_data/pseudospectra'
+            if not os.path.exists(rec_dir):
+                os.makedirs(rec_dir)
+            filename = os.path.join(rec_dir, METHOD + '_' + now.strftime('%Y%m%d_%H-%M-%S_') + str(obst_position) + '.npy')
+            np.save(filename, p_dB)
+            print('\nPseudospectrum saved in %s' % filename)    
         theta_bar = theta[np.argmax(p_dB)]
         max_height = max(p_dB)
-        doas = theta[signal.find_peaks(p_dB, height=(max_height-6, max_height))[0]]
+        if multiple_sources:
+            doas = theta[signal.find_peaks(p_dB, height=(max_height-4, max_height))[0]]
         print(f'\nDoA: {theta_bar} [deg]')
-
-        fig, ax2 = plt.subplots(subplot_kw={'projection': 'polar'})
-
-        ax2.plot(np.deg2rad(theta), p_dB)
-        ax2.vlines(np.deg2rad(doas), np.min(p_dB), np.max(p_dB), colors='r', linestyles='dashed')
-        ax2.set_title('Spatial Energy Distribution')
-        ax2.set_theta_offset(np.pi/2)
-        ax2.set_xlim(-np.pi/2, np.pi/2)
-        ax2.set_xticks(np.deg2rad([-80, -60, -40, -20, 0, 20, 40, 60, 80]))    
-        ax2.grid(True)
-        plt.show()
-
+        
         if verbose:
-            fig, ax = plt.subplots(4, 2, sharex=True, sharey=True)
-            plt.suptitle('Channel Envelopes')
-            for i in range(envelopes.shape[1]//2):
-                for j in range(2):
-                    ax[i, j].plot(roll_filt_sigs[:, 2*i+j])
-                    ax[i, j].vlines(np.array([furthest_peak, furthest_peak+discarded_samples, furthest_peak+discarded_samples+processed_samples]), -20, 20, colors='r', linestyles='dashed')
-                    ax[i, j].set_title('Channel %d' % (2*i+j+1))
-                    ax[i, j].minorticks_on()
-                    ax[i, j].grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
-                    ax[i, j].grid()
-            plt.tight_layout()
+            fig, ax2 = plt.subplots(subplot_kw={'projection': 'polar'})
+            ax2.plot(np.deg2rad(theta), p_dB)
+            if multiple_sources:
+                ax2.vlines(np.deg2rad(doas), np.min(p_dB), np.max(p_dB), colors='r', linestyles='dashed')
+            ax2.axvline(np.deg2rad(theta_bar), color='g', linestyle='dashed')
+            ax2.set_title('Pseudospectrum - %s' % plot_title)
+            ax2.set_theta_offset(np.pi/2)
+            ax2.set_xlim(-np.pi/2, np.pi/2)
+            ax2.set_xticks(np.deg2rad([-80, -60, -40, -20, 0, 20, 40, 60, 80]))    
+            ax2.grid(True)
             plt.show()
+
+        # if verbose:
+        #     fig, ax = plt.subplots(4, 2, sharex=True, sharey=True)
+        #     plt.suptitle('Channel Envelopes')
+        #     for i in range(envelopes.shape[1]//2):
+        #         for j in range(2):
+        #             ax[i, j].plot(roll_filt_sigs[:, 2*i+j])
+        #             ax[i, j].vlines(np.array([furthest_peak, furthest_peak+discarded_samples, furthest_peak+discarded_samples+processed_samples]), -20, 20, colors='r', linestyles='dashed')
+        #             ax[i, j].set_title('Channel %d' % (2*i+j+1))
+        #             ax[i, j].minorticks_on()
+        #             ax[i, j].grid(which='minor', linestyle=':', linewidth='0.5', color='gray')
+        #             ax[i, j].grid()
+        #     plt.tight_layout()
+        #     plt.show()
 
             # fig, ax = plt.subplots(nch//2, 2, sharex=True, sharey=True)
             # plt.suptitle('Input Audio')

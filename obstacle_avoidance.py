@@ -56,15 +56,15 @@ def recording_thread_function(q):
 if __name__ == "__main__":
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     speed = 0
-    rot_speed = 0
+    rot_speed = 200
     lateral_threshold = 30000
     ground_threshold = 40000
     air_threshold = 10
     output_threshold = -50 # [dB]
     distance_threshold = 20 # [cm]
     angle = 20 # [deg]
-    left_bound = 40 # [deg]
-    right_bound = -50 # [deg]
+    left_bound = 90 # [deg]
+    right_bound = -90 # [deg]
 
     save_audio = True
     rec_dir = './maze_runs/'
@@ -110,7 +110,7 @@ if __name__ == "__main__":
     chirp = signal.chirp(t_tone, hi_freq, t_tone[-1], low_freq)
     sig = pow_two_pad_and_window(chirp, show=False)
 
-    silence_dur = 20 # [ms]
+    silence_dur = 18 # [ms]
     silence_samples = int(silence_dur * fs/1000)
     silence_vec = np.zeros((silence_samples, ))
     full_sig = pow_two(np.concatenate((sig, silence_vec)))

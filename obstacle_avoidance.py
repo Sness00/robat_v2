@@ -35,7 +35,7 @@ def pow_two_pad_and_window(vec, show=False):
         plt.figure()
         plt.plot(t, padded_windowed_vec)
         plt.show()
-    return padded_windowed_vec/max(padded_windowed_vec)*0.8
+    return padded_windowed_vec/max(padded_windowed_vec)
 
 def pow_two(vec):
     return np.pad(vec, (0, 2**int(np.ceil(np.log2(len(vec)))) - len(vec)))
@@ -55,19 +55,23 @@ def recording_thread_function(q):
 
 if __name__ == "__main__":
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    speed = 0
-    rot_speed = 200
+    speed = 200
+    rot_speed = 150
     lateral_threshold = 30000
-    ground_threshold = 40000
+    ground_threshold = 400
     air_threshold = 10
     output_threshold = -50 # [dB]
-    distance_threshold = 20 # [cm]
-    angle = 20 # [deg]
-    left_bound = 90 # [deg]
-    right_bound = -90 # [deg]
+    distance_threshold = 25 # [cm]
+    angle = 15 # [deg]
+    smaller_angle = 10 # [deg]
+    left_bound = 30 # [deg]
+    right_bound = -50 # [deg]
 
     save_audio = True
     rec_dir = './maze_runs/'
+    offsets_dir = './offsets/'
+    if not os.path.exists(offsets_dir):
+        os.makedirs(offsets_dir)
     if not os.path.exists(rec_dir):
         os.makedirs(rec_dir)
 
@@ -118,7 +122,7 @@ if __name__ == "__main__":
 
     device = get_soundcard(sd.query_devices())
     activate_mics()
-
+    
     try:
         port = Connection.serial_default_port()
         try:
@@ -128,7 +132,7 @@ if __name__ == "__main__":
             robot = th[th.first_node()]            
             # Delay to allow robot initialization of all variables
             time.sleep(1)            
-           
+            offset_list = []
             try:
                 now = datetime.now()    
                 filename = os.path.join(rec_dir, now.strftime('%Y%m%d_%H-%M-%S') + '.wav')
@@ -141,7 +145,7 @@ if __name__ == "__main__":
                         
                         input_thread = threading.Thread(target=recording_thread_function, args=(q,), daemon=True)
                         input_thread.start()                            
-                                            
+                                
                         while True:
                             # Robot left the ground
                             if (robot['prox.ground.reflected'][0] < air_threshold or robot['prox.ground.reflected'][1] < air_threshold):
@@ -185,6 +189,7 @@ if __name__ == "__main__":
                             
                             offset = file.frames - curr_end
                             if offset > 0:
+                                offset_list.append(offset)
                                 robot['motor.left.target'] = speed
                                 robot['motor.right.target'] = speed            
                                 input_audio = sf.read(filename, start=curr_end, stop=curr_end+offset)[0] 
@@ -197,8 +202,8 @@ if __name__ == "__main__":
                                     try:
                                         distance, direct_path, obst_echo = sonar(roll_filt_sigs, discarded_samples, fs)
                                         distance = distance*100 # [m] to [cm]                                    
-                                        if distance == 0:
-                                            print('\nNo Obstacles')
+                                        # if distance == 0:
+                                        #     print('\nNo Obstacles')
                                         theta, p = spatial_filter(
                                                                     roll_filt_sigs[obst_echo - int(5e-4*fs):obst_echo + int(5e-4*fs)], 
                                                                     fs=fs, nch=roll_filt_sigs.shape[1], d=2.70e-3, 
@@ -209,14 +214,21 @@ if __name__ == "__main__":
                                         if direct_path != obst_echo:
                                             doa_index = np.argmax(p_dB)
                                             theta_hat = theta[doa_index]
-                                            print('\nDistance: %.1f [cm] | DoA: %.2f [deg]' % (distance, theta_hat))
+                                            
 
                                         if distance < distance_threshold and distance > 0:
+                                            print('\nDistance: %.1f [cm] | DoA: %.2f [deg]' % (distance, theta_hat))
+
+                                            if np.abs(theta_hat) > 30:
+                                                turning_angle = smaller_angle
+                                            else:
+                                                turning_angle = angle
+
                                             if (theta_hat > 0 and theta_hat < left_bound):
                                                 robot['leds.bottom.left'] = [0, 255, 0]
                                                 robot['leds.bottom.right'] = [0, 255, 0]
                                                 robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 255, 255]                                                    
-                                                t_rot = angle_to_time(angle, rot_speed)
+                                                t_rot = angle_to_time(turning_angle, rot_speed)
                                                 robot['motor.left.target'] = rot_speed
                                                 robot['motor.right.target'] = -rot_speed
                                                 time.sleep(t_rot)
@@ -224,7 +236,7 @@ if __name__ == "__main__":
                                                 robot['leds.bottom.left'] = [0, 255, 0]
                                                 robot['leds.bottom.right'] = [0, 255, 0]
                                                 robot['leds.circle'] = [0, 255, 255, 0, 0, 0, 0, 0]
-                                                t_rot = angle_to_time(angle, rot_speed)
+                                                t_rot = angle_to_time(turning_angle, rot_speed)
                                                 robot['motor.left.target'] = -rot_speed
                                                 robot['motor.right.target'] = rot_speed
                                                 time.sleep(t_rot)
@@ -232,7 +244,7 @@ if __name__ == "__main__":
                                                 robot['leds.bottom.left'] = [0, 255, 0]
                                                 robot['leds.bottom.right'] = [0, 255, 0]
                                                 robot['leds.circle'] = [255, 0, 0, 0, 0, 0, 0, 0]
-                                                t_rot = angle_to_time(angle, rot_speed)
+                                                t_rot = angle_to_time(turning_angle, rot_speed)
                                                 direction = random.choice([-1, 1])
                                                 robot['motor.left.target'] = direction*rot_speed
                                                 robot['motor.right.target'] = -direction*rot_speed
@@ -288,6 +300,8 @@ if __name__ == "__main__":
                     print('\nException encountered:', e)
                     traceback.print_exc()                    
             except KeyboardInterrupt:
+                offset_list = np.array(offset_list)
+                np.save(os.path.join(offsets_dir, now.strftime('%Y%m%d_%H-%M-%S') + '_offsets.npy'), offset_list)
                 end_of_recording = datetime.now()
                 print('\nTerminated by user')
                 print('\nRecording finished: ' + repr(filename))                

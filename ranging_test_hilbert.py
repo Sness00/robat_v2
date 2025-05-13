@@ -38,9 +38,9 @@ if __name__ == "__main__":
     save_recordings = False
     
     C_AIR = 343
-    fs = 192000
+    fs = 176400
 
-    min_distance = 10e-2
+    min_distance = 5e-2 # [m]
     discarded_samples = int(np.floor((min_distance*2)/C_AIR*fs))
 
     
@@ -48,10 +48,10 @@ if __name__ == "__main__":
     dur = 3e-3
 
     t_tone = np.linspace(0, dur, int(fs*dur))
-    chirp = signal.chirp(t_tone, 80e3, t_tone[-1], 20e3)
+    chirp = signal.chirp(t_tone, 60e3, t_tone[-1], 20e3)
     sig = pow_two_pad_and_window(chirp, fs, show=False)
 
-    silence_dur = 30 # [ms]
+    silence_dur = 18 # [ms]
     silence_samples = int(silence_dur * fs/1000)
     silence_vec = np.zeros((silence_samples, ))
     full_sig = pow_two(np.concatenate((sig, silence_vec)))
@@ -117,7 +117,7 @@ if __name__ == "__main__":
         peaks = []
         enough = True
         for i in np.arange(envelopes.shape[1]):
-            idxs, _ = signal.find_peaks(envelopes[emission_peak + discarded_samples:, i], prominence=2.5)
+            idxs, _ = signal.find_peaks(envelopes[emission_peak + discarded_samples:, i], prominence=3, width=5)
             if idxs.any():
                 peaks.append(idxs[0] + emission_peak + discarded_samples)
             else:
@@ -134,15 +134,15 @@ if __name__ == "__main__":
                 print('\nEstimated distance for channel', i+1, ':', '%.3f' % dist, '[m]')    
             peaks_array = np.array(peaks)
 
-        t_plot = np.linspace(0, envelopes.shape[0]/fs, envelopes.shape[0])
+        # t_plot = np.linspace(0, envelopes.shape[0]/fs, envelopes.shape[0])
         fig, ax = plt.subplots(4, 2, sharex=True, sharey=True)
         plt.suptitle('Channel Envelopes')
         for i in range(envelopes.shape[1]//2):
             for j in range(2):
-                ax[i, j].plot(t_plot, envelopes[:, 2*i+j])
+                ax[i, j].plot(envelopes[:, 2*i+j])
                 if enough:
-                    ax[i, j].axvline(emission_peak/fs, 0, 1.1*max(mean_envelope[:emission_peak]), linestyle='dashed', color='g')
-                    ax[i, j].axvline(peaks_array[2*i+j]/fs, 0, 1.1*max(envelopes[emission_peak:, 2*i+j]), linestyle='dashed', color='r')
+                    ax[i, j].axvline(emission_peak, 0, 1.1*max(mean_envelope[:emission_peak]), linestyle='dashed', color='g')
+                    ax[i, j].axvline(peaks_array[2*i+j], 0, 1.1*max(envelopes[emission_peak:, 2*i+j]), linestyle='dashed', color='r')
                 ax[i, j].set_title('Channel %d' % (2*i+j+1))
                 ax[i, j].minorticks_on()
                 ax[i, j].grid(which='minor', linestyle=':', linewidth='0.5', color='gray')

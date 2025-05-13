@@ -35,7 +35,7 @@ def pow_two_pad_and_window(vec, show=False):
         plt.figure()
         plt.plot(t, padded_windowed_vec)
         plt.show()
-    return padded_windowed_vec/max(padded_windowed_vec)
+    return padded_windowed_vec/max(padded_windowed_vec)*0.8
 
 def pow_two(vec):
     return np.pad(vec, (0, 2**int(np.ceil(np.log2(len(vec)))) - len(vec)))
@@ -61,11 +61,11 @@ if __name__ == "__main__":
     ground_threshold = 400
     air_threshold = 10
     output_threshold = -50 # [dB]
-    distance_threshold = 25 # [cm]
-    angle = 15 # [deg]
-    smaller_angle = 10 # [deg]
-    left_bound = 30 # [deg]
-    right_bound = -50 # [deg]
+    distance_threshold = 15 # [cm]
+    angle = 20 # [deg]
+    smaller_angle = 15 # [deg]
+    left_bound = 40 # [deg]
+    right_bound = -60 # [deg]
 
     save_audio = True
     rec_dir = './maze_runs/'
@@ -98,8 +98,8 @@ if __name__ == "__main__":
     fs = 176.4e3
 
     C_AIR = 343
-    min_distance = 10e-2
-    discarded_samples = int(np.floor((min_distance*2)/C_AIR*fs))
+    min_distance = 7e-2
+    discarded_samples = int(np.floor(((min_distance + 2.5e-2)*2)/C_AIR*fs))
 
     METHOD = 'das'
     if METHOD == 'das':
@@ -244,7 +244,7 @@ if __name__ == "__main__":
                                                 robot['leds.bottom.left'] = [0, 255, 0]
                                                 robot['leds.bottom.right'] = [0, 255, 0]
                                                 robot['leds.circle'] = [255, 0, 0, 0, 0, 0, 0, 0]
-                                                t_rot = angle_to_time(turning_angle, rot_speed)
+                                                t_rot = angle_to_time(45, rot_speed)
                                                 direction = random.choice([-1, 1])
                                                 robot['motor.left.target'] = direction*rot_speed
                                                 robot['motor.right.target'] = -direction*rot_speed

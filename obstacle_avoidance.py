@@ -15,7 +15,7 @@ from thymiodirect import Thymio, Connection
 from broadcast_pcmd3180 import activate_mics
 from das_v2 import das_filter
 from capon import capon_method
-from sonar import sonar 
+from sonar import sonar
 
 def get_soundcard(device_list):
     for i, each in enumerate(device_list):
@@ -44,7 +44,7 @@ def angle_to_time(angle, speed):
     A = 612.33
     B = -0.94
     if speed:
-        t = A*speed**B    
+        t = A*speed**B
         return t * abs(angle) / 360
     else:
         return 0
@@ -56,7 +56,7 @@ def recording_thread_function(q):
 if __name__ == "__main__":
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     speed = 200
-    rot_speed = 150
+    rot_speed = 200
     lateral_threshold = 30000
     ground_threshold = 400
     air_threshold = 10
@@ -81,7 +81,7 @@ if __name__ == "__main__":
         if status:
             print(status)
         q.put(indata.copy())
-    
+
     current_frame = 0
     def out_callback(outdata, frames, time, status):
         global current_frame
@@ -94,7 +94,7 @@ if __name__ == "__main__":
             outdata[chunksize:] = 0
             current_frame = 0
             raise sd.CallbackStop()
-        
+
     fs = 176.4e3
 
     C_AIR = 343
@@ -124,19 +124,19 @@ if __name__ == "__main__":
 
     device = get_soundcard(sd.query_devices())
     activate_mics()
-    
+
     try:
         port = Connection.serial_default_port()
         try:
             th = Thymio(serial_port=port,
             on_connect=lambda node_id: print(f'\nThymio {node_id} is connected'))
             th.connect()
-            robot = th[th.first_node()]            
+            robot = th[th.first_node()]
             # Delay to allow robot initialization of all variables
-            time.sleep(1)            
+            time.sleep(1)
             offset_list = []
             try:
-                now = datetime.now()    
+                now = datetime.now()
                 filename = os.path.join(rec_dir, now.strftime('%Y%m%d_%H-%M-%S') + '.wav')
                 with sf.SoundFile(filename, mode='x+', samplerate=int(fs),
                                 channels=8) as file:
@@ -144,10 +144,10 @@ if __name__ == "__main__":
                     with sd.InputStream(samplerate=int(fs), device=device,
                                         channels=8, callback=in_callback):
                         print('\nRecording started')
-                        
+
                         input_thread = threading.Thread(target=recording_thread_function, args=(q,), daemon=True)
-                        input_thread.start()                            
-                                
+                        input_thread.start()
+
                         while True:
                             # Robot left the ground
                             if (robot['prox.ground.reflected'][0] < air_threshold or robot['prox.ground.reflected'][1] < air_threshold):
@@ -177,8 +177,8 @@ if __name__ == "__main__":
                                 robot['motor.right.target'] = speed
                                 robot['leds.bottom.left'] = [0, 0, 0]
                                 robot['leds.bottom.right'] = [0, 0, 0]
-                        
-                            curr_end = file.frames                    
+
+                            curr_end = file.frames
                             stream = sd.OutputStream(samplerate=fs,
                                                 blocksize=0,
                                                 device=device,
@@ -188,39 +188,39 @@ if __name__ == "__main__":
                             with stream:
                                 while stream.active:
                                     pass
-                            
+
                             offset = file.frames - curr_end
                             if offset > 0:
                                 offset_list.append([curr_end, offset])
                                 robot['motor.left.target'] = speed
-                                robot['motor.right.target'] = speed            
-                                input_audio = sf.read(filename, start=curr_end, stop=curr_end+offset)[0] 
+                                robot['motor.right.target'] = speed
+                                input_audio = sf.read(filename, start=curr_end, stop=curr_end+offset)[0]
 
                                 dB_rms = 20*np.log10(np.mean(np.std(input_audio, axis=0)))
-                                
+
                                 if dB_rms > output_threshold:
                                     filtered_signals = signal.correlate(input_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
                                     roll_filt_sigs = np.roll(filtered_signals, -len(sig)//2, axis=0)
                                     try:
                                         distance, direct_path, obst_echo = sonar(roll_filt_sigs, discarded_samples, max_index, fs)
-                                        distance = distance*100 # [m] to [cm]                                    
+                                        distance = distance*100 # [m] to [cm]
                                         # if distance == 0:
                                         #     print('\nNo Obstacles')
                                         theta, p = spatial_filter(
-                                                                    roll_filt_sigs[obst_echo - int(5e-4*fs):obst_echo + int(5e-4*fs)], 
-                                                                    fs=fs, nch=roll_filt_sigs.shape[1], d=2.70e-3, 
+                                                                    roll_filt_sigs[obst_echo - int(5e-4*fs):obst_echo + int(5e-4*fs)],
+                                                                    fs=fs, nch=roll_filt_sigs.shape[1], d=2.70e-3,
                                                                     bw=(low_freq, hi_freq)
                                                                 )
                                         p_dB = 10*np.log10(p)
-                                        
+
                                         if direct_path != obst_echo:
                                             doa_index = np.argmax(p_dB)
                                             theta_hat = theta[doa_index]
                                             print('\nDistance: %.1f [cm] | DoA: %.2f [deg]' % (distance, theta_hat))
-                                            
+
 
                                         if distance < distance_threshold and distance > 0:
-                                            
+
 
                                             if np.abs(theta_hat) > 30:
                                                 turning_angle = smaller_angle
@@ -230,7 +230,7 @@ if __name__ == "__main__":
                                             if (theta_hat > 0 and theta_hat < left_bound):
                                                 robot['leds.bottom.left'] = [0, 255, 0]
                                                 robot['leds.bottom.right'] = [0, 255, 0]
-                                                robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 255, 255]                                                    
+                                                robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 255, 255]
                                                 t_rot = angle_to_time(turning_angle, rot_speed)
                                                 robot['motor.left.target'] = rot_speed
                                                 robot['motor.right.target'] = -rot_speed
@@ -254,20 +254,20 @@ if __name__ == "__main__":
                                                 time.sleep(t_rot)
 
                                             robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 0, 0]
-                                            
+
                                             robot['leds.bottom.left'] = [0, 0, 0]
                                             robot['leds.bottom.right'] = [0, 0, 0]
                                             robot['motor.left.target'] = speed
                                             robot['motor.right.target'] = speed
                                     except ValueError:
-                                        print('\nNo valid distance or DoA')                                        
+                                        print('\nNo valid distance or DoA')
                                 else:
                                     print('\nLow output level. Dead battery?')
                             else:
                                 print('\nNo audio data')
                                 robot['motor.left.target'] = 0
                                 robot['motor.right.target'] = 0
-                
+
                             # #Left proximity sensor
                             # if robot['prox.horizontal'][0] > lateral_threshold:
                             #     robot['leds.bottom.left'] = [0, 0, 255]
@@ -301,13 +301,13 @@ if __name__ == "__main__":
                     th.disconnect()
                 except Exception as e:
                     print('\nException encountered:', e)
-                    traceback.print_exc()                    
+                    traceback.print_exc()
             except KeyboardInterrupt:
                 offset_list = np.array(offset_list)
                 np.save(os.path.join(offsets_dir, now.strftime('%Y%m%d_%H-%M-%S') + '_offsets.npy'), offset_list)
                 end_of_recording = datetime.now()
                 print('\nTerminated by user')
-                print('\nRecording finished: ' + repr(filename))                
+                print('\nRecording finished: ' + repr(filename))
                 print('Recording time: %.0f [s] | Audio file length: %.0f [s]' % ((end_of_recording - now).total_seconds(), file.frames/fs)) # type: ignore
                 robot['motor.left.target'] = 0
                 robot['motor.right.target'] = 0
@@ -315,7 +315,7 @@ if __name__ == "__main__":
                 robot['leds.bottom.right'] = 0
                 robot['leds.circle'] = [0, 0, 0, 0, 0, 0, 0, 0]
                 time.sleep(1)
-                try:                
+                try:
                     th.disconnect()
                 except Exception as e:
                     print('\nException encountered:', e)

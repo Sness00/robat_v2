@@ -98,7 +98,7 @@ if __name__ == "__main__":
     fs = 176.4e3
 
     C_AIR = 343
-    min_distance = 10e-2
+    min_distance = 8e-2
     discarded_samples = int(np.floor(((min_distance + 2.5e-2)*2)/C_AIR*fs))
     max_distance = 1
     max_index = int(np.floor(((max_distance + 2.5e-2)*2)/C_AIR*fs))

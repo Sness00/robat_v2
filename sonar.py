@@ -1,10 +1,10 @@
 from scipy import signal
 import numpy as np
 
-def sonar(signals, discarded_samples, fs, C_AIR=343):
+def sonar(signals, discarded_samples, max_index, fs, C_AIR=343):
     envelopes = np.abs(signal.hilbert(signals, axis=0))
     mean_envelope = np.mean(envelopes, axis=1)
-
+    
     idxs, _ = signal.find_peaks(mean_envelope, prominence=12)
     try:
         emission_peak = idxs[0]
@@ -12,7 +12,7 @@ def sonar(signals, discarded_samples, fs, C_AIR=343):
         peaks_positions = []
         enough = True
         for i in np.arange(envelopes.shape[1]):
-            idxs, _ = signal.find_peaks(envelopes[emission_peak + discarded_samples:, i], prominence=4)
+            idxs, _ = signal.find_peaks(envelopes[emission_peak + discarded_samples:min(emission_peak + max_index, len(envelopes[emission_peak:])), i], prominence=3)
             if idxs.any():
                 peaks_positions.append(idxs[0] + emission_peak + discarded_samples)
             else:

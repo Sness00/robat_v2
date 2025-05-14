@@ -61,7 +61,7 @@ if __name__ == "__main__":
     ground_threshold = 400
     air_threshold = 10
     output_threshold = -50 # [dB]
-    distance_threshold = 15 # [cm]
+    distance_threshold = 20 # [cm]
     angle = 20 # [deg]
     smaller_angle = 15 # [deg]
     left_bound = 40 # [deg]
@@ -98,8 +98,10 @@ if __name__ == "__main__":
     fs = 176.4e3
 
     C_AIR = 343
-    min_distance = 7e-2
+    min_distance = 10e-2
     discarded_samples = int(np.floor(((min_distance + 2.5e-2)*2)/C_AIR*fs))
+    max_distance = 1
+    max_index = int(np.floor(((max_distance + 2.5e-2)*2)/C_AIR*fs))
 
     METHOD = 'das'
     if METHOD == 'das':
@@ -189,7 +191,7 @@ if __name__ == "__main__":
                             
                             offset = file.frames - curr_end
                             if offset > 0:
-                                offset_list.append(offset)
+                                offset_list.append([curr_end, offset])
                                 robot['motor.left.target'] = speed
                                 robot['motor.right.target'] = speed            
                                 input_audio = sf.read(filename, start=curr_end, stop=curr_end+offset)[0] 
@@ -200,7 +202,7 @@ if __name__ == "__main__":
                                     filtered_signals = signal.correlate(input_audio, np.reshape(sig, (-1, 1)), 'same', method='fft')
                                     roll_filt_sigs = np.roll(filtered_signals, -len(sig)//2, axis=0)
                                     try:
-                                        distance, direct_path, obst_echo = sonar(roll_filt_sigs, discarded_samples, fs)
+                                        distance, direct_path, obst_echo = sonar(roll_filt_sigs, discarded_samples, max_index, fs)
                                         distance = distance*100 # [m] to [cm]                                    
                                         # if distance == 0:
                                         #     print('\nNo Obstacles')
@@ -214,10 +216,11 @@ if __name__ == "__main__":
                                         if direct_path != obst_echo:
                                             doa_index = np.argmax(p_dB)
                                             theta_hat = theta[doa_index]
+                                            print('\nDistance: %.1f [cm] | DoA: %.2f [deg]' % (distance, theta_hat))
                                             
 
                                         if distance < distance_threshold and distance > 0:
-                                            print('\nDistance: %.1f [cm] | DoA: %.2f [deg]' % (distance, theta_hat))
+                                            
 
                                             if np.abs(theta_hat) > 30:
                                                 turning_angle = smaller_angle
@@ -244,7 +247,7 @@ if __name__ == "__main__":
                                                 robot['leds.bottom.left'] = [0, 255, 0]
                                                 robot['leds.bottom.right'] = [0, 255, 0]
                                                 robot['leds.circle'] = [255, 0, 0, 0, 0, 0, 0, 0]
-                                                t_rot = angle_to_time(45, rot_speed)
+                                                t_rot = angle_to_time(turning_angle, rot_speed)
                                                 direction = random.choice([-1, 1])
                                                 robot['motor.left.target'] = direction*rot_speed
                                                 robot['motor.right.target'] = -direction*rot_speed

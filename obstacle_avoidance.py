@@ -6,6 +6,7 @@ import time
 from datetime import datetime
 import queue
 import random
+import yaml
 import numpy as np
 from scipy import signal
 from matplotlib import pyplot as plt
@@ -55,10 +56,10 @@ def recording_thread_function(q):
 
 if __name__ == "__main__":
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    speed = 200
+    speed = 0
     rot_speed = 200
     lateral_threshold = 30000
-    ground_threshold = 400
+    ground_threshold = 40000
     air_threshold = 10
     output_threshold = -50 # [dB]
     distance_threshold = 20 # [cm]
@@ -135,6 +136,7 @@ if __name__ == "__main__":
             # Delay to allow robot initialization of all variables
             time.sleep(1)
             offset_list = []
+            reading_points = []
             try:
                 now = datetime.now()
                 filename = os.path.join(rec_dir, now.strftime('%Y%m%d_%H-%M-%S') + '.wav')
@@ -191,7 +193,8 @@ if __name__ == "__main__":
 
                             offset = file.frames - curr_end
                             if offset > 0:
-                                offset_list.append([curr_end, offset])
+                                reading_points.append(curr_end)
+                                offset_list.append(offset)
                                 robot['motor.left.target'] = speed
                                 robot['motor.right.target'] = speed
                                 input_audio = sf.read(filename, start=curr_end, stop=curr_end+offset)[0]
@@ -304,7 +307,13 @@ if __name__ == "__main__":
                     traceback.print_exc()
             except KeyboardInterrupt:
                 offset_list = np.array(offset_list)
-                np.save(os.path.join(offsets_dir, now.strftime('%Y%m%d_%H-%M-%S') + '_offsets.npy'), offset_list)
+                reading_points = np.array(reading_points)
+                # save offsets in a yaml file
+                data = {'reading_points': reading_points.tolist(),
+                        'offsets': offset_list.tolist()
+                        }
+                with open(os.path.join(offsets_dir, now.strftime('%Y%m%d_%H-%M-%S') + '.yaml'), 'w') as f:
+                    yaml.dump(data, f)
                 end_of_recording = datetime.now()
                 print('\nTerminated by user')
                 print('\nRecording finished: ' + repr(filename))

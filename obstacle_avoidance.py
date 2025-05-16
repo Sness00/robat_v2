@@ -56,10 +56,10 @@ def recording_thread_function(q):
 
 if __name__ == "__main__":
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    speed = 0
+    speed = 200
     rot_speed = 200
     lateral_threshold = 30000
-    ground_threshold = 40000
+    ground_threshold = 400
     air_threshold = 10
     output_threshold = -50 # [dB]
     distance_threshold = 20 # [cm]
@@ -67,8 +67,7 @@ if __name__ == "__main__":
     smaller_angle = 15 # [deg]
     left_bound = 40 # [deg]
     right_bound = -60 # [deg]
-
-    save_audio = True
+   
     rec_dir = './maze_runs/'
     offsets_dir = './offsets/'
     if not os.path.exists(offsets_dir):

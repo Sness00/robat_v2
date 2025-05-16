@@ -60,7 +60,7 @@ if __name__ == "__main__":
     rot_speed = 200
     lateral_threshold = 30000
     ground_threshold = 400
-    air_threshold = 10
+    air_threshold = 1
     output_threshold = -50 # [dB]
     distance_threshold = 20 # [cm]
     angle = 20 # [deg]

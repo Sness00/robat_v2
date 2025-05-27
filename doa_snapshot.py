@@ -2,6 +2,7 @@ import os
 import time
 from datetime import datetime
 import queue
+import yaml
 import numpy as np
 from scipy import signal
 from matplotlib import pyplot as plt
@@ -38,11 +39,11 @@ def pow_two(vec):
 if __name__ == "__main__":
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-    verbose = False
+    verbose = True
     save_recordings = True
-    multiple_sources = False
+    multiple_sources = True
 
-    obst_position = 90
+    obst_position = [-60, -90]
     
     fs = 176400
     C_AIR = 343
@@ -54,7 +55,7 @@ if __name__ == "__main__":
         plot_title = 'Delay and Sum'
     elif METHOD == 'capon':
         spatial_filter = capon_method
-        plot_title = 'Minimum Variance Distortionless Response'
+        plot_title = 'Capon Method'
     elif METHOD == 'music':
         spatial_filter = music
         plot_title = 'MUltiple SIgnal Classification'
@@ -151,13 +152,25 @@ if __name__ == "__main__":
             rec_dir = './doa_data/pseudospectra'
             if not os.path.exists(rec_dir):
                 os.makedirs(rec_dir)
-            filename = os.path.join(rec_dir, METHOD + '_' + now.strftime('%Y%m%d_%H-%M-%S_') + str(obst_position) + '.npy')
-            np.save(filename, p_dB)
+            filename = os.path.join(rec_dir, METHOD + '_' + now.strftime('%Y%m%d_%H-%M-%S') + '.yaml')
+            # Save in yaml file
+            with open(filename, 'w') as f:
+                yaml.dump({
+                    'theta': theta.tolist(),
+                    'p_dB': p_dB.tolist(),
+                    'fs': fs,
+                    'nch': roll_filt_sigs.shape[1],
+                    'd': 2.70e-3,
+                    'bw': (low_freq, hi_freq),
+                    'method': METHOD,
+                    'obst_position': obst_position
+                }, f)
+            # np.save(filename, p_dB)
             print('\nPseudospectrum saved in %s' % filename)    
         theta_bar = theta[np.argmax(p_dB)]
         max_height = max(p_dB)
         if multiple_sources:
-            doas = theta[signal.find_peaks(p_dB, height=(max_height-4, max_height))[0]]
+            doas = theta[signal.find_peaks(p_dB, height=(max_height-6, max_height))[0]]
         print(f'\nDoA: {theta_bar} [deg]')
         
         if verbose:

@@ -39,8 +39,8 @@ def pow_two(vec):
 if __name__ == "__main__":
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-    verbose = True
-    save_recordings = True
+    verbose = False
+    save_recordings = False
     multiple_sources = True
 
     obst_position = [-60, -90]
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     C_AIR = 343
     nch = 8
 
-    METHOD = 'music'    
+    METHOD = 'das'    
     if METHOD == 'das':
         spatial_filter = das_filter
         plot_title = 'Delay and Sum'
@@ -64,7 +64,7 @@ if __name__ == "__main__":
     field_range = 50e-2
     discarded_samples = int(np.floor((field_range*2)/C_AIR*fs)) - 60
     print(discarded_samples)
-    processed_samples = 192
+    processed_samples = 177
     dur = 3e-3
     hi_freq = 60e3
     low_freq = 20e3
@@ -137,7 +137,7 @@ if __name__ == "__main__":
         peaks, _ = signal.find_peaks(mean_env, prominence=10)
 
         furthest_peak = peaks[0]
-
+        start_time = time.time()
         theta, p = spatial_filter(
             roll_filt_sigs[furthest_peak+discarded_samples:furthest_peak+discarded_samples+processed_samples],
                                     fs=fs, 
@@ -147,6 +147,8 @@ if __name__ == "__main__":
                                     show=False, 
                                     wlen=128
                                     )
+        stop_time = time.time()
+        print(stop_time - start_time)
         p_dB = 10*np.log10(p)
         if save_recordings:
             rec_dir = './doa_data/pseudospectra'

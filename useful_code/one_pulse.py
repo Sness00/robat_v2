@@ -109,7 +109,7 @@ if __name__ == '__main__':
     plt.plot(envelopes[3200:3500], color='red')
     plt.legend(['Matched Filter Output', 'Envelope'])
     plt.show()
-    fig.savefig('envelope.png', transparent=True)
+    # fig.savefig('envelope.png', transparent=True)
 # %%
     rec_dir = './recordings/'
     if not os.path.exists(rec_dir):

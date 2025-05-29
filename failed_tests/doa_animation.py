@@ -6,10 +6,10 @@ import queue
 import time
 import argparse
 from matplotlib.animation import FuncAnimation
-from broadcast_pcmd3180 import activate_mics
-from das_v2 import das_filter
-from capon import capon_method
-from music_v2 import music
+from useful_code.broadcast_pcmd3180 import activate_mics
+from useful_code.das_v2 import das_filter
+from useful_code.capon import capon_method
+from useful_code.music_v2 import music
 
 def get_soundcard_iostream(device_list):
     for i, each in enumerate(device_list):
